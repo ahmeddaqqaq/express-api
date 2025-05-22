@@ -1,0 +1,2 @@
+1- what is delayedTransaction in Posttouspertransaction
+2- they need to send discounted item on its own in confirm trx

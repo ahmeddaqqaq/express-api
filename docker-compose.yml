@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - '9876:5432'
+    environment:
+      - POSTGRES_USER=express
+      - POSTGRES_PASSWORD=password@123
+      - POSTGRES_DB=express_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U Teletech_user -d teletech_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
