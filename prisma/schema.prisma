@@ -7,6 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model user {
+  id           String   @id @default(uuid())
+  name         String
+  mobileNumber String   @unique
+  password     String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model Image {
   id        String   @id @default(uuid())
   key       String   @unique
@@ -42,7 +53,8 @@ model Car {
   model        Model         @relation(fields: [modelId], references: [id])
   modelId      String
   plateNumber  String
-  year         String
+  year         String?
+  color        String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
@@ -72,20 +84,24 @@ model Model {
 }
 
 model Transaction {
-  id          String            @id @default(uuid())
-  status      TransactionStatus @default(scheduled)
-  customer    Customer          @relation(fields: [customerId], references: [id])
-  customerId  String
-  car         Car               @relation(fields: [carId], references: [id])
-  carId       String
-  service     Service           @relation(fields: [serviceId], references: [id])
-  serviceId   String
-  images      Image[]           @relation("TransactionImages")
-  addOns      AddOn[]
-  technicians Technician[]
-  invoice     Invoice?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id           String            @id @default(uuid())
+  status       TransactionStatus @default(scheduled)
+  customer     Customer          @relation(fields: [customerId], references: [id])
+  customerId   String
+  car          Car               @relation(fields: [carId], references: [id])
+  carId        String
+  service      Service           @relation(fields: [serviceId], references: [id])
+  serviceId    String
+  images       Image[]           @relation("TransactionImages")
+  addOns       AddOn[]
+  technicians  Technician[]
+  invoice      Invoice?
+  deliverTime  String?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  supervisor   Supervisor?       @relation(fields: [supervisorId], references: [id])
+  supervisorId String?
 }
 
 model Service {
@@ -104,9 +120,14 @@ model Technician {
   lName        String
   mobileNumber String
   workId       String        @unique
+  startShift   DateTime?
+  endShift     DateTime?
+  startBreak   DateTime?
+  endBreak     DateTime?
   transactions Transaction[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  auditLog     AuditLog[]
 }
 
 model AddOn {
@@ -127,10 +148,32 @@ model Invoice {
   updatedAt     DateTime    @updatedAt
 }
 
+model Supervisor {
+  id           String        @id @default(uuid())
+  firstName    String
+  lastName     String
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model AuditLog {
+  id           String     @id @default(uuid())
+  technician   Technician @relation(fields: [technicianId], references: [id])
+  technicianId String
+  action       String
+  timestamp    DateTime   @default(now())
+}
+
 enum TransactionStatus {
   scheduled
   stageOne
   stageTwo
   completed
   cancelled
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
 }

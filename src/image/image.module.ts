@@ -1,14 +1,14 @@
-// src/image/image.module.ts
+// image.module.ts
 import { Module } from '@nestjs/common';
-import { ImageService } from './image.service';
 import { ImageController } from './image.controller';
-import { PrismaModule } from '../prisma/prisma.module';
+import { ImageService } from './image.service';
 import { S3Module } from '../s3/s3.module';
-import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule, S3Module, ConfigModule],
+  imports: [S3Module, PrismaModule],
   controllers: [ImageController],
   providers: [ImageService],
+  exports: [ImageService], // Export if other modules need to use ImageService
 })
 export class ImageModule {}

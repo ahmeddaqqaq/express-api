@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -151,42 +152,28 @@ export class TransactionController {
     return await this.transactionService.update(updateTransactionDto);
   }
 
-  @Patch(':id/upload-image')
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const uniqueName = `${Date.now()}-${file.originalname}`;
-          cb(null, uniqueName);
-        },
-      }),
-    }),
-  )
+  @Patch(':id/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload image to transaction' })
   @ApiConsumes('multipart/form-data')
-  @ApiParam({
-    name: 'id',
-    required: true,
-    description: 'Transaction ID (UUID)',
-  })
   @ApiBody({
+    description: 'Image file upload',
     schema: {
       type: 'object',
       properties: {
-        image: {
+        file: {
           type: 'string',
           format: 'binary',
         },
       },
     },
   })
-  @ApiOperation({ summary: 'Upload an image to a transaction' })
-  @ApiResponse({ status: 200, description: 'Image uploaded successfully' })
-  @ApiResponse({ status: 404, description: 'Transaction not found' })
-  async uploadTransactionImage(
-    @Param('id') transactionId: string,
+  async uploadImage(
+    @Param('id', ParseUUIDPipe) transactionId: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.transactionService.uploadTransactionImage(transactionId, file);
+    return this.transactionService.uploadTransactionImages(transactionId, [
+      file,
+    ]);
   }
 }

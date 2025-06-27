@@ -2,10 +2,10 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CustomerService } from './customer.service';
@@ -37,7 +37,7 @@ export class CustomerController {
     return await this.customerService.create({ createCustomerDto });
   }
 
-  @ApiOkResponse({ type: CustomersManyResponse })
+  @ApiOkResponse({ type: () => CustomersManyResponse })
   @ApiQuery({ name: 'skip', required: false, type: Number })
   @ApiQuery({ name: 'take', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })

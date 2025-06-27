@@ -16,10 +16,10 @@ export class CarResponse {
   @ApiProperty()
   modelId: string;
 
-  @ApiProperty({ type: BrandResponse })
+  @ApiProperty({ type: () => BrandResponse })
   brand: Brand;
 
-  @ApiProperty({ type: ModelResponse })
+  @ApiProperty({ type: () => ModelResponse })
   model: Model;
 
   @ApiProperty()
@@ -27,6 +27,9 @@ export class CarResponse {
 
   @ApiProperty()
   plateNumber: string;
+
+  @ApiProperty()
+  color: string;
 
   @ApiProperty()
   createdAt: Date;

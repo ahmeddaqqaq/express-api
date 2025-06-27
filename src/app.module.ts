@@ -14,6 +14,9 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { S3Module } from './s3/s3.module';
 import { ImageModule } from './image/image.module';
+import { SupervisorModule } from './supervisor/supervisor.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -30,6 +33,9 @@ import { ImageModule } from './image/image.module';
     StatisticsModule,
     S3Module,
     ImageModule,
+    SupervisorModule,
+    AuditLogModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

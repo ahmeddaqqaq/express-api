@@ -12,7 +12,7 @@ export class BrandResponse {
   // @ApiProperty({ type: ImageResponse })
   // logo: ImageResponse;
 
-  @ApiProperty({ type: [ModelResponse] })
+  @ApiProperty({ type: () => [ModelResponse] })
   models: ModelResponse[];
 
   @ApiProperty()

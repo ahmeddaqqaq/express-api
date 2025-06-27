@@ -1,52 +1,19 @@
-// src/image/image.service.ts
+// image.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Image, Transaction } from '@prisma/client';
-// import { S3 } from 'aws-sdk';
-import { ConfigService } from '@nestjs/config';
-import { extname, join } from 'path';
-// import { Inject } from '@nestjs/common';
-import { ensureDir, writeFile, unlink } from 'fs-extra';
-import { promisify } from 'util';
-import { existsSync } from 'fs';
+import { S3Service } from '../s3/s3.service';
 
 @Injectable()
 export class ImageService {
-  private readonly uploadDir = './uploads';
-
   constructor(
-    private prisma: PrismaService,
-    private configService: ConfigService, // @Inject('S3_INSTANCE') private s3: S3,
-  ) {
-    ensureDir(this.uploadDir); // Create upload directory if it doesn't exist
-  }
+    private readonly prisma: PrismaService,
+    private readonly s3Service: S3Service,
+  ) {}
 
-  async fetchAll() {
-    const resp = await this.prisma.image.findMany({
-      select: { id: true, url: true },
-    });
-    return resp;
-  }
-
-  async uploadToLocal(
-    file: Express.Multer.File,
-  ): Promise<{ url: string; key: string }> {
-    const key = `${Date.now().toString()}${extname(file.originalname)}`;
-    const filePath = join(this.uploadDir, key);
-    await writeFile(filePath, file.buffer);
-
-    const url = `${
-      this.configService.get('APP_URL') || 'http://localhost:3000'
-    }/uploads/${key}`;
-    return { url, key };
-  }
-
-  async createImage(file: Express.Multer.File): Promise<Image> {
-    // Local version
-    const { url, key } = await this.uploadToLocal(file);
-
-    // AWS S3 version (commented out)
-    // const { url, key } = await this.uploadToS3(file);
+  async uploadImage(file: Express.Multer.File) {
+    const key = `images/${Date.now()}-${file.originalname}`;
+    await this.s3Service.uploadFile(file, key);
+    const url = await this.s3Service.getFileUrl(key);
 
     return this.prisma.image.create({
       data: {
@@ -57,34 +24,26 @@ export class ImageService {
     });
   }
 
-  async getImage(id: string): Promise<Image | null> {
+  async getImage(id: string) {
     return this.prisma.image.findUnique({
       where: { id },
+      include: {
+        brand: true,
+        transactions: true,
+      },
     });
   }
 
-  async deleteImage(id: string): Promise<void> {
-    const image = await this.prisma.image.findUnique({ where: { id } });
-    if (!image) return;
-
-    // Local version
-    const filePath = join(this.uploadDir, image.key);
-    if (existsSync(filePath)) {
-      await unlink(filePath);
-    }
-
-    // AWS S3 version (commented out)
-    // await this.s3
-    //   .deleteObject({
-    //     Bucket: this.configService.get('AWS_BUCKET_NAME'),
-    //     Key: image.key,
-    //   })
-    //   .promise();
-
-    await this.prisma.image.delete({ where: { id } });
+  async getImages() {
+    return this.prisma.image.findMany({
+      include: {
+        brand: true,
+        transactions: true,
+      },
+    });
   }
 
-  async assignImageToBrand(imageId: string, brandId: string): Promise<Image> {
+  async setBrandLogo(imageId: string, brandId: string) {
     return this.prisma.image.update({
       where: { id: imageId },
       data: {
@@ -95,18 +54,18 @@ export class ImageService {
     });
   }
 
-  async assignImagesToTransaction(
-    imageIds: string[],
-    transactionId: string,
-  ): Promise<Transaction> {
-    return this.prisma.transaction.update({
-      where: { id: transactionId },
-      data: {
-        images: {
-          connect: imageIds.map((id) => ({ id })),
-        },
-      },
-      include: { images: true },
+  async deactivateImage(id: string) {
+    return this.prisma.image.update({
+      where: { id },
+      data: { isActive: false },
     });
+  }
+
+  async deleteImage(id: string) {
+    const image = await this.prisma.image.findUnique({ where: { id } });
+    if (!image) return;
+
+    await this.s3Service.deleteFile(image.key);
+    return this.prisma.image.delete({ where: { id } });
   }
 }

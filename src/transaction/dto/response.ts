@@ -6,6 +6,8 @@ import { CustomerResponse } from 'src/customer/responses';
 import { ImageResponse } from 'src/image/response';
 import { InvoiceResponse } from 'src/invoice/dto/response';
 import { ServiceResponse } from 'src/service/dto/response';
+import { SupervisorResponse } from 'src/supervisor/dto/response';
+import { TechnicianResponse } from 'src/technician/dto/response';
 
 export class TransactionResponse {
   @ApiProperty()
@@ -29,14 +31,23 @@ export class TransactionResponse {
   @ApiProperty({ type: ServiceResponse })
   service: ServiceResponse;
 
-  @ApiProperty({ type: [AddOnsResponse] })
+  @ApiProperty({ type: () => [AddOnsResponse] })
   addOns: [AddOnsResponse];
 
-  @ApiProperty({ type: InvoiceResponse })
+  @ApiProperty({ type: () => InvoiceResponse })
   invoice: InvoiceResponse;
 
-  @ApiProperty({ type: [ImageResponse] })
+  @ApiProperty({ type: () => [ImageResponse] })
   images: [ImageResponse];
+
+  @ApiProperty({ type: () => SupervisorResponse })
+  supervisor: SupervisorResponse;
+
+  @ApiProperty({ type: () => [TechnicianResponse] })
+  technicians: TechnicianResponse[];
+
+  @ApiProperty()
+  deliverTime: string;
 
   @ApiProperty()
   createdAt: Date;

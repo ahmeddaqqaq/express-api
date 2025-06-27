@@ -1,8 +1,16 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Param,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateTechnicianDto } from './dto/create-technician-dto';
-import { TechnicianManyResponse, TechnicianResponse } from './dto/response';
+import { TechnicianManyResponse } from './dto/response';
 import { TechnicianFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
 
@@ -40,5 +48,29 @@ export class TechnicianController {
       filterDto,
       paginationDto,
     });
+  }
+
+  // --- SHIFT CONTROLS ---
+
+  @Post(':id/start-shift')
+  async startShift(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.startShift(id);
+  }
+
+  @Post(':id/end-shift')
+  async endShift(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.endShift(id);
+  }
+
+  // --- BREAK CONTROLS ---
+
+  @Post(':id/start-break')
+  async startBreak(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.startBreak(id);
+  }
+
+  @Post(':id/end-break')
+  async endBreak(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.endBreak(id);
   }
 }

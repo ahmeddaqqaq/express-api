@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsUUID } from 'class-validator';
+import { IsArray, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateTransactionDto {
   @ApiProperty()
@@ -11,15 +11,30 @@ export class CreateTransactionDto {
   carId: string;
 
   @ApiProperty({ type: [String] })
+  @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
-  technicianIds: string[];
+  technicianIds?: string[];
 
   @ApiProperty({ type: [String] })
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()
   addOnsIds?: string[];
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  note?: string;
+
+  @ApiProperty()
+  @IsUUID()
+  supervisorId: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsOptional()
+  deliverTime?: string;
 
   @ApiProperty()
   @IsUUID()

@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Car } from '@prisma/client';
 import { CarResponse } from 'src/car/dto/response';
 
 export class CustomerResponse {
@@ -18,8 +17,8 @@ export class CustomerResponse {
   @ApiProperty()
   count: number;
 
-  @ApiProperty({ type: [CarResponse] })
-  cars: Car[];
+  @ApiProperty({ type: () => [CarResponse] })
+  cars: CarResponse[];
 
   @ApiProperty()
   isActive: boolean;

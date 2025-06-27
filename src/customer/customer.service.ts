@@ -10,6 +10,7 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { CustomerFilterDto } from './dto/filter-dto';
 import { Prisma } from '@prisma/client';
+import { CustomersManyResponse } from './responses';
 
 @Injectable()
 export class CustomerService {
@@ -47,7 +48,7 @@ export class CustomerService {
   }: {
     paginationDto: PaginationDto;
     filterDto: CustomerFilterDto;
-  }) {
+  }): Promise<CustomersManyResponse> {
     const where: Prisma.CustomerWhereInput = {
       OR: [
         {
@@ -76,6 +77,9 @@ export class CustomerService {
       take: paginationDto.take,
       include: { cars: { include: { brand: true, model: true } } },
       where,
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
     return {
