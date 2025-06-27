@@ -1,6 +1,23 @@
 -- CreateEnum
 CREATE TYPE "TransactionStatus" AS ENUM ('scheduled', 'stageOne', 'stageTwo', 'completed', 'cancelled');
 
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'SUPERVISOR');
+
+-- CreateTable
+CREATE TABLE "user" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "mobileNumber" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateTable
 CREATE TABLE "Image" (
     "id" TEXT NOT NULL,
@@ -34,7 +51,8 @@ CREATE TABLE "Car" (
     "customerId" TEXT NOT NULL,
     "modelId" TEXT NOT NULL,
     "plateNumber" TEXT NOT NULL,
-    "year" TEXT NOT NULL,
+    "year" TEXT,
+    "color" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -70,8 +88,11 @@ CREATE TABLE "Transaction" (
     "customerId" TEXT NOT NULL,
     "carId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
+    "deliverTime" TEXT,
+    "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "supervisorId" TEXT,
 
     CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
 );
@@ -95,6 +116,10 @@ CREATE TABLE "Technician" (
     "lName" TEXT NOT NULL,
     "mobileNumber" TEXT NOT NULL,
     "workId" TEXT NOT NULL,
+    "startShift" TIMESTAMP(3),
+    "endShift" TIMESTAMP(3),
+    "startBreak" TIMESTAMP(3),
+    "endBreak" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -124,6 +149,27 @@ CREATE TABLE "Invoice" (
 );
 
 -- CreateTable
+CREATE TABLE "Supervisor" (
+    "id" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Supervisor_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" TEXT NOT NULL,
+    "technicianId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_TransactionImages" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -146,6 +192,9 @@ CREATE TABLE "_AddOnToTransaction" (
 
     CONSTRAINT "_AddOnToTransaction_AB_pkey" PRIMARY KEY ("A","B")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "user_mobileNumber_key" ON "user"("mobileNumber");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Image_key_key" ON "Image"("key");
@@ -205,7 +254,13 @@ ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_carId_fkey" FOREIGN KEY ("
 ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "Supervisor"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_technicianId_fkey" FOREIGN KEY ("technicianId") REFERENCES "Technician"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_TransactionImages" ADD CONSTRAINT "_TransactionImages_A_fkey" FOREIGN KEY ("A") REFERENCES "Image"("id") ON DELETE CASCADE ON UPDATE CASCADE;
