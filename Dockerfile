@@ -1,19 +1,3 @@
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-RUN npm install -g pnpm
-
-COPY pnpm-lock.yaml package.json ./
-
-RUN pnpm install
-
-COPY . .
-
-RUN npx prisma generate
-
-RUN pnpm build
-
 FROM node:18-alpine
 
 WORKDIR /app
@@ -22,12 +6,14 @@ RUN npm install -g pnpm
 
 COPY pnpm-lock.yaml package.json ./
 
-RUN pnpm install --prod
+RUN pnpm install --frozen-lockfile
 
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/.env ./.env
+COPY . .
 
-EXPOSE 3000
+RUN npx prisma generate
 
-CMD npx prisma generate && pnpm start:prod
+RUN pnpm build
+
+EXPOSE 4000
+
+CMD npx prisma generate && npx prisma migrate deploy && pnpm start:prod
