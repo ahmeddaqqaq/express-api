@@ -27,7 +27,6 @@ model Image {
   updatedAt DateTime @updatedAt
 
   // Relations
-  brand        Brand?        @relation("BrandLogo")
   transactions Transaction[] @relation("TransactionImages")
 }
 
@@ -63,7 +62,6 @@ model Car {
 model Brand {
   id        String   @id @default(uuid())
   name      String   @unique
-  logo      Image?   @relation("BrandLogo", fields: [imageId], references: [id])
   models    Model[]
   cars      Car[]
   createdAt DateTime @default(now())
@@ -76,6 +74,7 @@ model Model {
   name      String
   brand     Brand    @relation(fields: [brandId], references: [id])
   brandId   String
+  type      CarType  @default(Sedan)
   cars      Car[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -105,12 +104,24 @@ model Transaction {
 }
 
 model Service {
-  id           String        @id @default(uuid())
+  id           String         @id @default(uuid())
   name         String
-  price        Float
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   transactions Transaction[]
+  prices       ServicePrice[]
+}
+
+model ServicePrice {
+  id        String   @id @default(uuid())
+  service   Service  @relation(fields: [serviceId], references: [id])
+  serviceId String
+  carType   CarType
+  price     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serviceId, carType])
 }
 
 model Technician {
@@ -169,6 +180,7 @@ enum TransactionStatus {
   scheduled
   stageOne
   stageTwo
+  stageThree
   completed
   cancelled
 }
@@ -176,4 +188,12 @@ enum TransactionStatus {
 enum UserRole {
   ADMIN
   SUPERVISOR
+}
+
+enum CarType {
+  Bike
+  Sedan
+  Crossover
+  SUV
+  VAN
 }

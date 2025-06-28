@@ -18,23 +18,6 @@ export class TransactionService {
     private readonly s3Service: S3Service,
   ) {}
 
-  // async create(createTransactionDto: CreateTransactionDto) {
-  //   return this.prisma.transaction.create({
-  //     data: {
-  //       customer: { connect: { id: createTransactionDto.customerId } },
-  //       car: { connect: { id: createTransactionDto.carId } },
-  //       technician: { connect: { id: createTransactionDto.technicianId } },
-  //       service: { connect: { id: createTransactionDto.serviceId } },
-  //       addOns: {
-  //         connect: createTransactionDto.addOnsIds?.map((id) => ({ id })) || [],
-  //       },
-  //     },
-  //     include: {
-  //       addOns: true,
-  //     },
-  //   });
-  // }
-
   async create(createTransactionDto: CreateTransactionDto) {
     return this.prisma.transaction.create({
       data: {
@@ -180,6 +163,24 @@ export class TransactionService {
     return transactions;
   }
 
+  async findStageThree() {
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        status: 'stageThree',
+      },
+      include: {
+        car: { include: { brand: true, model: true } },
+        customer: true,
+        technicians: true,
+        service: true,
+        addOns: true,
+        images: true,
+      },
+    });
+
+    return transactions;
+  }
+
   async findCompleted() {
     const transactions = await this.prisma.transaction.findMany({
       where: {
@@ -218,20 +219,50 @@ export class TransactionService {
   async update(updateTransactionDto: UpdateTransactionDto) {
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: updateTransactionDto.id },
-      include: { service: true, addOns: true },
+      include: {
+        service: true,
+        addOns: true,
+        car: {
+          include: {
+            model: true,
+          },
+        },
+      },
     });
 
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
     }
 
-    // Generate invoice if completed
-    if (updateTransactionDto.status === TransactionStatus.completed) {
-      const servicePrice = transaction.service.price;
+    // 💡 Get the carType from car.model
+    const carType = transaction.car.model?.type;
+
+    // 🔍 Fetch the correct price for the service & car type
+    let servicePrice = 0;
+    if (
+      updateTransactionDto.status === TransactionStatus.completed &&
+      carType
+    ) {
+      const priceByType = await this.prisma.servicePrice.findFirst({
+        where: {
+          serviceId: transaction.service.id,
+          carType: carType,
+        },
+      });
+
+      if (!priceByType) {
+        throw new NotFoundException(
+          `No price found for service ${transaction.service.name} and car type ${carType}`,
+        );
+      }
+
+      servicePrice = priceByType.price;
+
       const addOnsPrice = transaction.addOns.reduce(
         (sum, addOn) => sum + addOn.price,
         0,
       );
+
       const totalAmount = servicePrice + addOnsPrice;
 
       await this.prisma.invoice.create({
@@ -242,7 +273,7 @@ export class TransactionService {
       });
     }
 
-    // Prepare data for update
+    // Prepare update data
     const updateData: any = {
       status: updateTransactionDto.status,
     };
@@ -253,7 +284,6 @@ export class TransactionService {
       };
     }
 
-    // Update transaction
     await this.prisma.transaction.update({
       where: { id: updateTransactionDto.id },
       data: updateData,

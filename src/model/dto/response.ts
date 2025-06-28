@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { CarType } from '@prisma/client';
 
 export class ModelResponse {
   @ApiProperty()
@@ -9,6 +10,9 @@ export class ModelResponse {
 
   @ApiProperty()
   brandId: string;
+
+  @ApiProperty({ enum: CarType })
+  carType: CarType;
 
   @ApiProperty()
   createdAt: Date;

@@ -50,14 +50,6 @@ export class ImageController {
     return this.imageService.getImages();
   }
 
-  @Patch(':id/brand-logo')
-  async setBrandLogo(
-    @Param('id') imageId: string,
-    @Body('brandId') brandId: string,
-  ) {
-    return this.imageService.setBrandLogo(imageId, brandId);
-  }
-
   @Delete(':id')
   async deleteImage(@Param('id') id: string) {
     return this.imageService.deleteImage(id);

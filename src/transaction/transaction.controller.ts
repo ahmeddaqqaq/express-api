@@ -131,6 +131,23 @@ export class TransactionController {
     },
     type: [TransactionResponse],
   })
+  @Get('findInProgressStageThree')
+  async findStageThree() {
+    return await this.transactionService.findStageThree();
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+    type: [TransactionResponse],
+  })
   @Get('findCompleted')
   async findCompleted() {
     return await this.transactionService.findCompleted();

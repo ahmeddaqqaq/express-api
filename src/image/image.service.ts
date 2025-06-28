@@ -28,7 +28,6 @@ export class ImageService {
     return this.prisma.image.findUnique({
       where: { id },
       include: {
-        brand: true,
         transactions: true,
       },
     });
@@ -37,19 +36,7 @@ export class ImageService {
   async getImages() {
     return this.prisma.image.findMany({
       include: {
-        brand: true,
         transactions: true,
-      },
-    });
-  }
-
-  async setBrandLogo(imageId: string, brandId: string) {
-    return this.prisma.image.update({
-      where: { id: imageId },
-      data: {
-        brand: {
-          connect: { id: brandId },
-        },
       },
     });
   }

@@ -50,11 +50,19 @@ export class BrandService {
       where,
       include: { models: true },
     });
+
+    const data = brands.map((brand) => ({
+      ...brand,
+      models: brand.models.map((model) => ({
+        ...model,
+        carType: model.type,
+      })),
+    }));
     return {
       rows: count,
       skip: paginationDto.skip,
       take: paginationDto.take,
-      data: brands,
+      data,
     };
   }
 }

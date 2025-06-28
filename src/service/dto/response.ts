@@ -1,4 +1,14 @@
+// service-response.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
+import { CarType } from '@prisma/client';
+
+class PriceByCarType {
+  @ApiProperty({ enum: CarType })
+  carType: CarType;
+
+  @ApiProperty()
+  price: number;
+}
 
 export class ServiceResponse {
   @ApiProperty()
@@ -8,13 +18,13 @@ export class ServiceResponse {
   name: string;
 
   @ApiProperty()
-  price: number;
-
-  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()
   updatedAt: Date;
+
+  @ApiProperty({ type: [PriceByCarType] })
+  prices: PriceByCarType[];
 }
 
 export class ServiceManyResponse {

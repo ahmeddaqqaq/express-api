@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsUUID } from 'class-validator';
+import { IsString, IsUUID, IsEnum } from 'class-validator';
+import { CarType } from '@prisma/client';
 
 export class CreateModelDto {
   @ApiProperty()
@@ -9,4 +10,12 @@ export class CreateModelDto {
   @ApiProperty()
   @IsUUID()
   brandId: string;
+
+  @ApiProperty({
+    enum: CarType,
+    enumName: 'CarType',
+    default: CarType.Sedan,
+  })
+  @IsEnum(CarType)
+  type: CarType;
 }
