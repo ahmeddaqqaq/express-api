@@ -29,4 +29,6 @@ async function bootstrap() {
   );
 }
 
-bootstrap();
+bootstrap().catch((error) => {
+  Logger.error('Error occurred during application bootstrap', error);
+});

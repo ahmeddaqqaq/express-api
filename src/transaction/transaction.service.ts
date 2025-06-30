@@ -11,6 +11,7 @@ import { Prisma, TransactionStatus } from '@prisma/client';
 import { TransactionFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { S3Service } from 'src/s3/s3.service';
+import axios from 'axios';
 
 @Injectable()
 export class TransactionService {
@@ -22,7 +23,7 @@ export class TransactionService {
   logger = new Logger('s3');
 
   async create(createTransactionDto: CreateTransactionDto) {
-    return this.prisma.transaction.create({
+    const transaction = await this.prisma.transaction.create({
       data: {
         customer: { connect: { id: createTransactionDto.customerId } },
         car: { connect: { id: createTransactionDto.carId } },
@@ -42,6 +43,21 @@ export class TransactionService {
         addOns: true,
       },
     });
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: createTransactionDto.customerId },
+    });
+    if (
+      customer.mobileNumber.startsWith('079') ||
+      customer.mobileNumber.startsWith('077') ||
+      customer.mobileNumber.startsWith('078')
+    ) {
+      const otpUrl = `${
+        process.env.OTP_SERVICE_URL
+      }&msg=Thank%20you%20for%20choosing%20RADIANT!%20Your%20car%20will%20shine%20in%20no%20time,%20we%20will%20notify%20you%20once%20car%20is%20ready%20for%20collection.&numbers=${
+        '962' + customer.mobileNumber.toString().slice(1)
+      }`;
+      await axios.get(otpUrl);
+    }
   }
 
   async findMany({
@@ -406,6 +422,24 @@ export class TransactionService {
       where: { id: updateTransactionDto.id },
       data: updateData,
     });
+
+    if (updateTransactionDto.status === TransactionStatus.completed) {
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: transaction.customerId },
+      });
+      if (
+        customer.mobileNumber.startsWith('079') ||
+        customer.mobileNumber.startsWith('077') ||
+        customer.mobileNumber.startsWith('078')
+      ) {
+        const otpUrl = `${
+          process.env.OTP_SERVICE_URL
+        }&msg=Your%20car%20is%20ready%20and%20radiant.%20Please%20collect%20your%20car%20from%20our%20front%20desk.%20We%20hope%20to%20see%20you%20again%20soon!&numbers=${
+          '962' + customer.mobileNumber.toString().slice(1)
+        }`;
+        await axios.get(otpUrl);
+      }
+    }
   }
 
   async uploadTransactionImages(
