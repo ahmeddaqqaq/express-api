@@ -200,6 +200,13 @@ BYD,F6,Sedan
 BYD,F7,Sedan
 BYD,G3,Sedan
 BYD,S6,SUV
+BYD,Han,Sedan
+BYD,Song,SUV
+BYD,Qin,Sedan
+BYD,Yuan,Crossover
+BYD,Seal,Sedan
+BYD,Dolphin,Sedan
+BYD,Seagull,Sedan
 Cadillac,Allante,Sedan
 Cadillac,XLR,Sedan
 Cadillac,Sedan Deville,Sedan
@@ -1432,7 +1439,7 @@ Morgan,Aero,Sedan
 Morgan,Aero 8,Sedan
 NETA,U Pro 400,Crossover
 NETA,U Pro 500,SUV
-NETA,V Pro,
+NETA,V Pro,Sedan
 Nissan,Figaro,Sedan
 Nissan,180SX,Sedan
 Nissan,200SX,Sedan
