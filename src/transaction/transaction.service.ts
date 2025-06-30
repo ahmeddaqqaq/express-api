@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -17,6 +18,8 @@ export class TransactionService {
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
   ) {}
+
+  logger = new Logger('s3');
 
   async create(createTransactionDto: CreateTransactionDto) {
     return this.prisma.transaction.create({
@@ -409,7 +412,7 @@ export class TransactionService {
     transactionId: string,
     files: Express.Multer.File[],
   ) {
-    // Validate transaction exists
+    this.logger.verbose('uploading image');
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
       include: { images: true },
@@ -421,12 +424,10 @@ export class TransactionService {
       );
     }
 
-    // Validate files
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
 
-    // Validate each file
     for (const file of files) {
       if (!file.mimetype.startsWith('image/')) {
         throw new BadRequestException(
@@ -435,15 +436,12 @@ export class TransactionService {
       }
     }
 
-    // Process all files
     const uploadPromises = files.map(async (file) => {
-      // Generate S3 key
       const fileExtension = file.originalname.split('.').pop();
       const key = `transactions/${transactionId}/${Date.now()}-${Math.random()
         .toString(36)
         .substring(7)}.${fileExtension}`;
 
-      // Upload to Wasabi
       await this.s3Service.uploadFile(file, key);
       const url = await this.s3Service.getFileUrl(key);
 
@@ -454,10 +452,8 @@ export class TransactionService {
       };
     });
 
-    // Wait for all uploads to complete
     const imageData = await Promise.all(uploadPromises);
 
-    // Create all images and connect to transaction
     return this.prisma.transaction.update({
       where: { id: transactionId },
       data: {
