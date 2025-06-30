@@ -16,6 +16,7 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -32,6 +33,7 @@ import { PaginationDto } from 'src/dto/pagination.dto';
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
+  @Post('create')
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -43,11 +45,11 @@ export class TransactionController {
       },
     },
   })
-  @Post('create')
   async create(@Body() createTransactionDto: CreateTransactionDto) {
     return await this.transactionService.create(createTransactionDto);
   }
 
+  @Get('findMany')
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -60,7 +62,6 @@ export class TransactionController {
     },
     type: TransactionManyResponse,
   })
-  @Get('findMany')
   async findMany(
     @Query() filterDto: TransactionFilterDto,
     @Query() paginationDto: PaginationDto,
@@ -68,23 +69,13 @@ export class TransactionController {
     return await this.transactionService.findMany({ filterDto, paginationDto });
   }
 
-  @ApiResponse({
-    status: '4XX',
-    schema: {
-      type: 'object',
-      properties: {
-        error: {
-          type: 'string',
-        },
-      },
-    },
-    type: [TransactionResponse],
-  })
   @Get('findScheduled')
-  async findScheduled() {
-    return await this.transactionService.findScheduled();
-  }
-
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format)',
+    example: '2023-12-31',
+  })
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -97,11 +88,18 @@ export class TransactionController {
     },
     type: [TransactionResponse],
   })
+  async findScheduled(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findScheduled(filterDate);
+  }
+
   @Get('findInProgressStageOne')
-  async findStageOne() {
-    return await this.transactionService.findStageOne();
-  }
-
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format)',
+    example: '2023-12-31',
+  })
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -114,11 +112,18 @@ export class TransactionController {
     },
     type: [TransactionResponse],
   })
+  async findStageOne(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findStageOne(filterDate);
+  }
+
   @Get('findInProgressStageTwo')
-  async findStageTwo() {
-    return await this.transactionService.findStageTwo();
-  }
-
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format)',
+    example: '2023-12-31',
+  })
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -131,11 +136,18 @@ export class TransactionController {
     },
     type: [TransactionResponse],
   })
+  async findStageTwo(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findStageTwo(filterDate);
+  }
+
   @Get('findInProgressStageThree')
-  async findStageThree() {
-    return await this.transactionService.findStageThree();
-  }
-
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format)',
+    example: '2023-12-31',
+  })
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -148,9 +160,33 @@ export class TransactionController {
     },
     type: [TransactionResponse],
   })
+  async findStageThree(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findStageThree(filterDate);
+  }
+
   @Get('findCompleted')
-  async findCompleted() {
-    return await this.transactionService.findCompleted();
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format)',
+    example: '2023-12-31',
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+    type: [TransactionResponse],
+  })
+  async findCompleted(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findCompleted(filterDate);
   }
 
   @ApiResponse({

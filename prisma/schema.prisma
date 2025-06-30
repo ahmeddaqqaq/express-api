@@ -129,8 +129,6 @@ model Technician {
   status       Boolean       @default(true)
   fName        String
   lName        String
-  mobileNumber String
-  workId       String        @unique
   startShift   DateTime?
   endShift     DateTime?
   startBreak   DateTime?

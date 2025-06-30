@@ -25,16 +25,7 @@ export class TechnicianService {
     filterDto: TechnicianFilterDto;
     paginationDto: PaginationDto;
   }): Promise<TechnicianManyResponse> {
-    const where: Prisma.TechnicianWhereInput = {
-      AND: [
-        {
-          mobileNumber: {
-            contains: filterDto.search,
-            mode: 'insensitive',
-          },
-        },
-      ],
-    };
+    const where: Prisma.TechnicianWhereInput = {};
 
     const count = await this.prisma.technician.count({
       where,
@@ -56,7 +47,6 @@ export class TechnicianService {
       id: tech.id,
       fName: tech.fName,
       lName: tech.lName,
-      mobileNumber: tech.mobileNumber,
       status: tech.status,
       createdAt: tech.createdAt,
       updatedAt: tech.updatedAt,

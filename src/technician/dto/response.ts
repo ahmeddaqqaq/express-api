@@ -12,9 +12,6 @@ export class TechnicianResponse {
   lName: string;
 
   @ApiProperty()
-  mobileNumber: string;
-
-  @ApiProperty()
   status: boolean;
 
   @ApiProperty({ required: false })

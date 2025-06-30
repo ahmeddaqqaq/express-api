@@ -9,12 +9,4 @@ export class CreateTechnicianDto {
   @ApiProperty()
   @IsString()
   lName: string;
-
-  @ApiProperty()
-  @IsString()
-  mobileNumber: string;
-
-  @ApiProperty()
-  @IsString()
-  workId: string;
 }
