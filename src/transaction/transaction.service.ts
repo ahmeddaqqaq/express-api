@@ -12,6 +12,7 @@ import { TransactionFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { S3Service } from 'src/s3/s3.service';
 import axios from 'axios';
+import { CalculateTotalDto } from './dto/calculate-total.dto';
 
 @Injectable()
 export class TransactionService {
@@ -440,6 +441,55 @@ export class TransactionService {
         await axios.get(otpUrl);
       }
     }
+  }
+
+  async calculateTotal(calculateTotalDto: CalculateTotalDto) {
+    const car = await this.prisma.car.findUnique({
+      where: {
+        id: calculateTotalDto.carId,
+      },
+      include: {
+        model: true,
+      },
+    });
+
+    const service = await this.prisma.service.findUnique({
+      where: {
+        id: calculateTotalDto.serviceId,
+      },
+    });
+
+    const priceByType = await this.prisma.servicePrice.findFirst({
+      where: {
+        serviceId: calculateTotalDto.serviceId,
+        carType: car.model.type,
+      },
+    });
+
+    let total = priceByType.price;
+
+    if (
+      calculateTotalDto?.addOnsIds &&
+      calculateTotalDto?.addOnsIds.length > 0
+    ) {
+      const addOnsRecords = await this.prisma.addOn.findMany({
+        where: {
+          id: {
+            in: calculateTotalDto.addOnsIds,
+          },
+        },
+      });
+
+      const addOnsTotal = addOnsRecords.reduce(
+        (sum, addOn) => sum + addOn.price,
+        0,
+      );
+      total += addOnsTotal;
+    }
+
+    return {
+      total,
+    };
   }
 
   async uploadTransactionImages(

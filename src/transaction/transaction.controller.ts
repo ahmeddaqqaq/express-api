@@ -15,7 +15,6 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
-  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -24,9 +23,9 @@ import { CreateTransactionDto } from './dto/transaction-dto';
 import { UpdateTransactionDto } from './dto/update-transaction-dto';
 import { TransactionManyResponse, TransactionResponse } from './dto/response';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import { TransactionFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
+import { CalculateTotalDto } from './dto/calculate-total.dto';
 
 @ApiTags('Transaction')
 @Controller('transaction')
@@ -203,6 +202,25 @@ export class TransactionController {
   @Patch('update')
   async update(@Body() updateTransactionDto: UpdateTransactionDto) {
     return await this.transactionService.update(updateTransactionDto);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Post('calculate-total')
+  async calculateTotal(
+    @Body()
+    calculateTotalDto: CalculateTotalDto,
+  ) {
+    return this.transactionService.calculateTotal(calculateTotalDto);
   }
 
   @Patch(':id/upload')
