@@ -17,6 +17,7 @@ import { ImageModule } from './image/image.module';
 import { SupervisorModule } from './supervisor/supervisor.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
+import { SeederModule } from './seeder/seeder.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AuthModule } from './auth/auth.module';
     SupervisorModule,
     AuditLogModule,
     AuthModule,
+    SeederModule,
   ],
   controllers: [AppController],
   providers: [AppService],

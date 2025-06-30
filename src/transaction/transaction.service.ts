@@ -101,6 +101,9 @@ export class TransactionService {
         service: true,
         addOns: true,
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
     return {
       rows: count,
@@ -110,11 +113,26 @@ export class TransactionService {
     };
   }
 
-  async findScheduled() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'scheduled',
-      },
+  async findScheduled(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'scheduled',
+    };
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.createdAt = {
+        gte: startOfDay,
+        lte: endOfDay,
+      };
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
       include: {
         car: { include: { brand: true, model: true } },
         technicians: true,
@@ -122,52 +140,32 @@ export class TransactionService {
         service: true,
         addOns: true,
       },
-    });
-
-    return transactions;
-  }
-
-  async findStageOne() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'stageOne',
-      },
-      include: {
-        car: { include: { brand: true, model: true } },
-        customer: true,
-        technicians: true,
-        service: true,
-        addOns: true,
-        images: true,
+      orderBy: {
+        createdAt: 'asc',
       },
     });
-
-    return transactions;
   }
 
-  async findStageTwo() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'stageTwo',
-      },
-      include: {
-        car: { include: { brand: true, model: true } },
-        customer: true,
-        technicians: true,
-        service: true,
-        addOns: true,
-        images: true,
-      },
-    });
+  async findStageOne(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'stageOne',
+    };
 
-    return transactions;
-  }
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
 
-  async findStageThree() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'stageThree',
-      },
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.createdAt = {
+        gte: startOfDay,
+        lte: endOfDay,
+      };
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
@@ -176,16 +174,132 @@ export class TransactionService {
         addOns: true,
         images: true,
       },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
-
-    return transactions;
   }
 
-  async findCompleted() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'completed',
+  async findStageTwo(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'stageTwo',
+    };
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.OR = [
+        {
+          // Check if updatedAt falls within the date range
+          updatedAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        {
+          // Or check if createdAt falls within the date range
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      ];
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
+      include: {
+        car: { include: { brand: true, model: true } },
+        customer: true,
+        technicians: true,
+        service: true,
+        addOns: true,
+        images: true,
       },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async findStageThree(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'stageThree',
+    };
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.OR = [
+        {
+          updatedAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        {
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      ];
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
+      include: {
+        car: { include: { brand: true, model: true } },
+        customer: true,
+        technicians: true,
+        service: true,
+        addOns: true,
+        images: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
+
+  async findCompleted(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'completed',
+    };
+
+    if (date) {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      where.OR = [
+        {
+          updatedAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        {
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      ];
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
@@ -195,9 +309,10 @@ export class TransactionService {
         invoice: true,
         images: true,
       },
+      orderBy: {
+        createdAt: 'asc',
+      },
     });
-
-    return transactions;
   }
 
   async findCancelled() {

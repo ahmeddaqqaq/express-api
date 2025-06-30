@@ -67,6 +67,16 @@ export class CustomerService {
             },
           },
         },
+        {
+          fName: {
+            contains: filterDto.search,
+            mode: 'insensitive',
+          },
+          lName: {
+            contains: filterDto.search,
+            mode: 'insensitive',
+          },
+        },
       ],
     };
 

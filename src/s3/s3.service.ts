@@ -28,12 +28,18 @@ export class S3Service {
     });
   }
 
-  async uploadFile(file: Express.Multer.File, key: string) {
+  async uploadFile(
+    file: Express.Multer.File,
+    key: string,
+    isPublic: boolean = true,
+  ) {
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
+      ACL: isPublic ? 'public-read' : 'private',
+      CacheControl: 'max-age=31536000',
     });
 
     await this.s3Client.send(command);

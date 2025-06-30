@@ -49,6 +49,9 @@ export class BrandService {
       take: paginationDto.take,
       where,
       include: { models: true },
+      orderBy: {
+        name: 'asc',
+      },
     });
 
     const data = brands.map((brand) => ({
