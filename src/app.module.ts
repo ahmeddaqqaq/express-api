@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -18,6 +18,7 @@ import { SupervisorModule } from './supervisor/supervisor.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { SeederModule } from './seeder/seeder.module';
+import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
   imports: [
@@ -42,4 +43,11 @@ import { SeederModule } from './seeder/seeder.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RefreshTokenMiddleware)
+      .exclude('auth/(.*)')  // Don't apply to auth routes
+      .forRoutes('*');       // Apply to all other routes
+  }
+}

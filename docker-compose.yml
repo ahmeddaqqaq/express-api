@@ -9,18 +9,7 @@ services:
       - POSTGRES_DB=express_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U express -d express_db']
-      interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
-
-networks:
-  app-network:
-    driver: bridge
 
 volumes:
   postgres_data:

@@ -23,6 +23,25 @@ export class TransactionService {
 
   logger = new Logger('s3');
 
+  // Helper functions for UTC+3 timezone handling
+  private getStartOfDayUTC3(date: Date): Date {
+    // Create start of day in UTC+3 timezone
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    // Subtract 3 hours to convert UTC+3 to UTC
+    startOfDay.setTime(startOfDay.getTime() - (3 * 60 * 60 * 1000));
+    return startOfDay;
+  }
+
+  private getEndOfDayUTC3(date: Date): Date {
+    // Create end of day in UTC+3 timezone
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    // Subtract 3 hours to convert UTC+3 to UTC
+    endOfDay.setTime(endOfDay.getTime() - (3 * 60 * 60 * 1000));
+    return endOfDay;
+  }
+
   async create(createTransactionDto: CreateTransactionDto) {
     const transaction = await this.prisma.transaction.create({
       data: {
@@ -139,11 +158,9 @@ export class TransactionService {
     };
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
 
       where.createdAt = {
         gte: startOfDay,
@@ -172,11 +189,9 @@ export class TransactionService {
     };
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
 
       where.createdAt = {
         gte: startOfDay,
@@ -206,11 +221,9 @@ export class TransactionService {
     };
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
 
       where.OR = [
         {
@@ -252,11 +265,9 @@ export class TransactionService {
     };
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
 
       where.OR = [
         {
@@ -296,11 +307,9 @@ export class TransactionService {
     };
 
     if (date) {
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
 
       where.OR = [
         {
