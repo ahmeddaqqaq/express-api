@@ -50,4 +50,21 @@ export class SupervisorService {
       data: supervisors,
     };
   }
+
+  async update(id: string, updateSupervisorDto: CreateSuperVisorDto) {
+    const supervisor = await this.prisma.supervisor.findUnique({ where: { id } });
+    if (!supervisor) throw new Error('Supervisor not found.');
+    
+    return this.prisma.supervisor.update({
+      where: { id },
+      data: updateSupervisorDto,
+    });
+  }
+
+  async delete(id: string) {
+    const supervisor = await this.prisma.supervisor.findUnique({ where: { id } });
+    if (!supervisor) throw new Error('Supervisor not found.');
+    
+    return this.prisma.supervisor.delete({ where: { id } });
+  }
 }

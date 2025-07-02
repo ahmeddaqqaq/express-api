@@ -37,4 +37,35 @@ export class ServiceService {
 
     return services;
   }
+
+  async update(id: string, updateServiceDto: CreateServiceDto) {
+    const service = await this.prisma.service.findUnique({ where: { id } });
+    if (!service) throw new Error('Service not found.');
+    
+    const { name, prices } = updateServiceDto;
+    
+    return this.prisma.service.update({
+      where: { id },
+      data: {
+        name,
+        prices: {
+          deleteMany: {},
+          create: prices.map(({ carType, price }) => ({
+            carType,
+            price,
+          })),
+        },
+      },
+      include: {
+        prices: true,
+      },
+    });
+  }
+
+  async delete(id: string) {
+    const service = await this.prisma.service.findUnique({ where: { id } });
+    if (!service) throw new Error('Service not found.');
+    
+    return this.prisma.service.delete({ where: { id } });
+  }
 }

@@ -28,4 +28,21 @@ export class AddOnsService {
     const addOn = await this.prisma.addOn.findUnique({ where: { id } });
     return addOn;
   }
+
+  async update(id: string, updateAddOnDto: CreateAddOnDto) {
+    const addOn = await this.prisma.addOn.findUnique({ where: { id } });
+    if (!addOn) throw new Error('AddOn not found.');
+    
+    return this.prisma.addOn.update({
+      where: { id },
+      data: updateAddOnDto,
+    });
+  }
+
+  async delete(id: string) {
+    const addOn = await this.prisma.addOn.findUnique({ where: { id } });
+    if (!addOn) throw new Error('AddOn not found.');
+    
+    return this.prisma.addOn.delete({ where: { id } });
+  }
 }

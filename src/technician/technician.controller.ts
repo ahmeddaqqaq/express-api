@@ -6,6 +6,8 @@ import {
   Query,
   Param,
   ParseUUIDPipe,
+  Delete,
+  Put,
 } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -72,5 +74,18 @@ export class TechnicianController {
   @Post(':id/end-break')
   async endBreak(@Param('id', ParseUUIDPipe) id: string) {
     return this.technicianService.endBreak(id);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateTechnicianDto: CreateTechnicianDto,
+  ) {
+    return this.technicianService.update(id, updateTechnicianDto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.delete(id);
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Param, ParseUUIDPipe, Delete, Put } from '@nestjs/common';
 import { SupervisorService } from './supervisor.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateSuperVisorDto } from './dto/create-supervisor.dto';
@@ -40,5 +40,18 @@ export class SupervisorController {
       filterDto,
       paginationDto,
     });
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateSupervisorDto: CreateSuperVisorDto,
+  ) {
+    return this.supervisorService.update(id, updateSupervisorDto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.supervisorService.delete(id);
   }
 }

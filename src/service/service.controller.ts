@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Param, ParseUUIDPipe, Delete, Put } from '@nestjs/common';
 import { ServiceService } from './service.service';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateServiceDto } from './dto/create-service-dto';
@@ -40,5 +40,18 @@ export class ServiceController {
   @Get('findMany')
   async findMany() {
     return await this.serviceService.findMany();
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateServiceDto: CreateServiceDto,
+  ) {
+    return this.serviceService.update(id, updateServiceDto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.serviceService.delete(id);
   }
 }

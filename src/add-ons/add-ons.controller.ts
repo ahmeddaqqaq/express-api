@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Param, ParseUUIDPipe, Delete, Put } from '@nestjs/common';
 import { AddOnsService } from './add-ons.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateAddOnDto } from './dto/create-add-on-dto';
@@ -35,5 +35,18 @@ export class AddOnsController {
     @Query() paginationDto: PaginationDto,
   ): Promise<AddOnsManyResponse> {
     return this.addOnsService.findAll({ paginationDto });
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateAddOnDto: CreateAddOnDto,
+  ) {
+    return this.addOnsService.update(id, updateAddOnDto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.addOnsService.delete(id);
   }
 }

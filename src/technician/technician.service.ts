@@ -139,4 +139,21 @@ export class TechnicianService {
     });
     await this.auditLogService.log(id, 'BREAK_ENDED');
   }
+
+  async update(id: string, updateTechnicianDto: CreateTechnicianDto) {
+    const tech = await this.prisma.technician.findUnique({ where: { id } });
+    if (!tech) throw new Error('Technician not found.');
+    
+    return this.prisma.technician.update({
+      where: { id },
+      data: updateTechnicianDto,
+    });
+  }
+
+  async delete(id: string) {
+    const tech = await this.prisma.technician.findUnique({ where: { id } });
+    if (!tech) throw new Error('Technician not found.');
+    
+    return this.prisma.technician.delete({ where: { id } });
+  }
 }
