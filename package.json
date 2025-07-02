@@ -8,6 +8,7 @@
   "scripts": {
     "build": "nest build",
     "seed": "ts-node src/seeder/seed-brands-models.ts",
+    "seed-customers": "ts-node customer-seed.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
