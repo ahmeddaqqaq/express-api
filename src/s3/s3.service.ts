@@ -8,6 +8,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
+import { Readable } from 'stream';
 
 @Injectable()
 export class S3Service {
@@ -65,7 +66,13 @@ export class S3Service {
       Key: key,
     });
 
-    return this.s3Client.send(command);
+    try {
+      const response = await this.s3Client.send(command);
+      return response;
+    } catch (error) {
+      console.error('Error fetching file from S3:', error);
+      throw error;
+    }
   }
 
   async deleteFile(key: string) {
@@ -75,5 +82,65 @@ export class S3Service {
     });
 
     await this.s3Client.send(command);
+  }
+
+  async streamToBuffer(stream: any): Promise<Buffer> {
+    if (!stream) {
+      throw new Error('Stream is null or undefined');
+    }
+
+    // Handle different stream types from AWS SDK v3
+    if (stream instanceof Readable) {
+      // Node.js Readable stream
+      const chunks: Buffer[] = [];
+      return new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+        stream.on('error', reject);
+      });
+    }
+
+    // Handle async iterable streams
+    if (stream[Symbol.asyncIterator]) {
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+      }
+      return Buffer.concat(chunks);
+    }
+
+    // Handle ReadableStream (web streams)
+    if (stream.getReader) {
+      const reader = stream.getReader();
+      const chunks: Uint8Array[] = [];
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        
+        const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+        
+        return Buffer.from(result);
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
+    // Fallback for other types
+    if (stream.arrayBuffer) {
+      return Buffer.from(await stream.arrayBuffer());
+    }
+
+    throw new Error('Unsupported stream type');
   }
 }

@@ -56,15 +56,8 @@ export class ImageService {
   async getImageStream(key: string) {
     const response = await this.s3Service.getFileStream(key);
     
-    // Convert stream to buffer
-    const chunks: Buffer[] = [];
-    const stream = response.Body as any;
-    
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-    
-    const buffer = Buffer.concat(chunks);
+    // Convert stream to buffer using the helper method
+    const buffer = await this.s3Service.streamToBuffer(response.Body);
     
     return {
       buffer,

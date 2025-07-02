@@ -536,7 +536,10 @@ export class TransactionService {
         .substring(7)}.${fileExtension}`;
 
       await this.s3Service.uploadFile(file, key);
-      const url = await this.s3Service.getFileUrl(key);
+      
+      // Use API URL instead of signed URL to avoid expiration
+      const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
+      const url = `${baseUrl}/express/images/serve/${key}`;
 
       return {
         key,
