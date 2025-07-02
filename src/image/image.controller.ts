@@ -6,11 +6,13 @@ import {
   UseInterceptors,
   Delete,
   Param,
-  Patch,
-  Body,
   Get,
+  Res,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { ImageService } from './image.service';
 import {
   ApiBody,
@@ -48,6 +50,30 @@ export class ImageController {
   @Get()
   async fetchAll() {
     return this.imageService.getImages();
+  }
+
+  @Get('serve/:key(*)')
+  @ApiOperation({ summary: 'Serve image with proper CORS headers' })
+  @ApiResponse({ status: 200, description: 'Image served successfully' })
+  @ApiResponse({ status: 404, description: 'Image not found' })
+  async serveImage(@Param('key') key: string, @Res() res: Response) {
+    try {
+      const imageData = await this.imageService.getImageStream(key);
+      
+      // Set CORS headers
+      res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Cache-Control': 'public, max-age=31536000',
+        'Content-Type': imageData.contentType,
+      });
+
+      // Send the buffer directly
+      res.send(imageData.buffer);
+    } catch (error) {
+      throw new HttpException('Image not found', HttpStatus.NOT_FOUND);
+    }
   }
 
   @Delete(':id')

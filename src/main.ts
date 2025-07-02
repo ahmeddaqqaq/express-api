@@ -17,6 +17,8 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000', // Local development
       'http://127.0.0.1:3000', // Alternative localhost
+      // Add your production domains here
+      'https://lionsinternationalco.com',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
