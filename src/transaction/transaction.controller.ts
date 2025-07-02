@@ -33,6 +33,12 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Post('create')
+  @ApiOperation({ summary: 'Create a new transaction' })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction created successfully',
+    type: TransactionResponse,
+  })
   @ApiResponse({
     status: '4XX',
     schema: {
@@ -188,6 +194,12 @@ export class TransactionController {
     return await this.transactionService.findCompleted(filterDate);
   }
 
+  @ApiOperation({ summary: 'Update transaction status and details' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction updated successfully',
+    type: TransactionResponse,
+  })
   @ApiResponse({
     status: '4XX',
     schema: {

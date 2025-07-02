@@ -29,8 +29,33 @@ export class TransactionService {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     // Subtract 3 hours to convert UTC+3 to UTC
-    startOfDay.setTime(startOfDay.getTime() - (3 * 60 * 60 * 1000));
+    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
     return startOfDay;
+  }
+
+  private generateRandomHex(): string {
+    return Math.floor(Math.random() * 0x10000)
+      .toString(16)
+      .toUpperCase()
+      .padStart(4, '0');
+  }
+
+  private async sendSMS(mobileNumber: string, message: string): Promise<void> {
+    try {
+      const otpUrl = `${process.env.OTP_SERVICE_URL}&msg=${encodeURIComponent(
+        message,
+      )}&numbers=${'962' + mobileNumber.slice(1)}`;
+
+      await axios.get(otpUrl, {
+        timeout: 10000,
+      });
+
+      this.logger.log(`SMS sent successfully to ${mobileNumber}`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send SMS to ${mobileNumber}: ${error.message}`,
+      );
+    }
   }
 
   private getEndOfDayUTC3(date: Date): Date {
@@ -38,7 +63,7 @@ export class TransactionService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     // Subtract 3 hours to convert UTC+3 to UTC
-    endOfDay.setTime(endOfDay.getTime() - (3 * 60 * 60 * 1000));
+    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
     return endOfDay;
   }
 
@@ -60,7 +85,18 @@ export class TransactionService {
         deliverTime: createTransactionDto.deliverTime,
       },
       include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
         addOns: true,
+        technicians: true,
+        supervisor: true,
+        images: true,
       },
     });
     const customer = await this.prisma.customer.findUnique({
@@ -71,13 +107,12 @@ export class TransactionService {
       customer.mobileNumber.startsWith('077') ||
       customer.mobileNumber.startsWith('078')
     ) {
-      const otpUrl = `${
-        process.env.OTP_SERVICE_URL
-      }&msg=Thank%20you%20for%20choosing%20RADIANT!%20Your%20car%20will%20shine%20in%20no%20time,%20we%20will%20notify%20you%20once%20car%20is%20ready%20for%20collection.&numbers=${
-        '962' + customer.mobileNumber.toString().slice(1)
-      }`;
-      await axios.get(otpUrl);
+      const welcomeMessage =
+        'Thank you for choosing RADIANT! Your car will shine in no time, we will notify you once car is ready for collection.';
+      await this.sendSMS(customer.mobileNumber, welcomeMessage);
     }
+
+    return transaction;
   }
 
   async findMany({
@@ -161,7 +196,9 @@ export class TransactionService {
       // Convert to UTC+3 timezone aware boundaries
       const startOfDay = this.getStartOfDayUTC3(date);
       const endOfDay = this.getEndOfDayUTC3(date);
-
+      this.logger.verbose(
+        `Using UTC+3 boundaries: ${startOfDay} - ${endOfDay}`,
+      );
       where.createdAt = {
         gte: startOfDay,
         lte: endOfDay,
@@ -428,9 +465,29 @@ export class TransactionService {
       };
     }
 
-    await this.prisma.transaction.update({
+    const OTPCode = this.generateRandomHex();
+
+    // Add OTP to update data
+    updateData.OTP = OTPCode;
+
+    const updatedTransaction = await this.prisma.transaction.update({
       where: { id: updateTransactionDto.id },
       data: updateData,
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
+        addOns: true,
+        technicians: true,
+        supervisor: true,
+        images: true,
+        invoice: true,
+      },
     });
 
     if (updateTransactionDto.status === TransactionStatus.completed) {
@@ -442,14 +499,12 @@ export class TransactionService {
         customer.mobileNumber.startsWith('077') ||
         customer.mobileNumber.startsWith('078')
       ) {
-        const otpUrl = `${
-          process.env.OTP_SERVICE_URL
-        }&msg=Your%20car%20is%20ready%20and%20radiant.%20Please%20collect%20your%20car%20from%20our%20front%20desk.%20We%20hope%20to%20see%20you%20again%20soon!&numbers=${
-          '962' + customer.mobileNumber.toString().slice(1)
-        }`;
-        await axios.get(otpUrl);
+        const completionMessage = `Your car is ready and radiant. Please collect your car from our front desk. We hope to see you again soon! Your OTP number is ${OTPCode}`;
+        await this.sendSMS(customer.mobileNumber, completionMessage);
       }
     }
+
+    return updatedTransaction;
   }
 
   async calculateTotal(calculateTotalDto: CalculateTotalDto) {
@@ -459,12 +514,6 @@ export class TransactionService {
       },
       include: {
         model: true,
-      },
-    });
-
-    const service = await this.prisma.service.findUnique({
-      where: {
-        id: calculateTotalDto.serviceId,
       },
     });
 
@@ -505,7 +554,6 @@ export class TransactionService {
     transactionId: string,
     files: Express.Multer.File[],
   ) {
-    this.logger.verbose('uploading image');
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
       include: { images: true },
@@ -536,7 +584,7 @@ export class TransactionService {
         .substring(7)}.${fileExtension}`;
 
       await this.s3Service.uploadFile(file, key);
-      
+
       // Use API URL instead of signed URL to avoid expiration
       const baseUrl = process.env.BASE_URL || 'http://localhost:4000';
       const url = `${baseUrl}/express/images/serve/${key}`;

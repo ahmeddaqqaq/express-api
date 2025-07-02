@@ -50,6 +50,12 @@ export class TransactionResponse {
   deliverTime: string;
 
   @ApiProperty()
+  notes: string;
+
+  @ApiProperty()
+  OTP: string;
+
+  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()

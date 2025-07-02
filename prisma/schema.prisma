@@ -97,6 +97,7 @@ model Transaction {
   invoice      Invoice?
   deliverTime  String?
   notes        String?
+  OTP          String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   supervisor   Supervisor?       @relation(fields: [supervisorId], references: [id])
