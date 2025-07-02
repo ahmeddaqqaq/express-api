@@ -55,6 +55,19 @@ export class S3Service {
     return getSignedUrl(this.s3Client, command, { expiresIn });
   }
 
+  getPublicUrl(key: string): string {
+    return `${this.configService.get('WASABI_ENDPOINT')}/${this.bucketName}/${key}`;
+  }
+
+  async getFileStream(key: string) {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    return this.s3Client.send(command);
+  }
+
   async deleteFile(key: string) {
     const command = new DeleteObjectCommand({
       Bucket: this.bucketName,

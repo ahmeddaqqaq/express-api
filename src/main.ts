@@ -13,6 +13,17 @@ async function bootstrap() {
 
   app.setGlobalPrefix(globalPrefix);
   app.useGlobalPipes(new ValidationPipe());
+  app.enableCors({
+    origin: [
+      'http://localhost:3000', // Local development
+      'http://127.0.0.1:3000', // Alternative localhost
+      // Add your production domains here
+      'https://lionsinternationalco.com',
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 
   // Serve static files from uploads directory
   app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
