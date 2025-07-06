@@ -499,7 +499,10 @@ export class TransactionService {
         customer.mobileNumber.startsWith('077') ||
         customer.mobileNumber.startsWith('078')
       ) {
-        const completionMessage = `Your car is ready and radiant. Please collect your car from our front desk. We hope to see you again soon! Your OTP number is ${OTPCode}`;
+        const brand = await this.prisma.brand.findUnique({
+          where: { id: transaction.car.brandId },
+        });
+        const completionMessage = `Dear ${customer.fName}, Your ${brand.name} ${transaction.car.model.name} is ready and radiant. Please collect your car from our front desk. We hope to see you again soon! Your OTP number is ${OTPCode}`;
         await this.sendSMS(customer.mobileNumber, completionMessage);
       }
     }
