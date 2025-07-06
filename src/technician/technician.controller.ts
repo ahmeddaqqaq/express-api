@@ -76,6 +76,26 @@ export class TechnicianController {
     return this.technicianService.endBreak(id);
   }
 
+  // --- OVERTIME CONTROLS ---
+
+  @Post(':id/start-overtime')
+  async startOvertime(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.startOvertime(id);
+  }
+
+  @Post(':id/end-overtime')
+  async endOvertime(@Param('id', ParseUUIDPipe) id: string) {
+    return this.technicianService.endOvertime(id);
+  }
+
+  @Get(':id/daily-working-hours')
+  async getDailyWorkingHours(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('date') date: string,
+  ) {
+    return this.technicianService.getDailyWorkingHours(id, date);
+  }
+
   @Put(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,

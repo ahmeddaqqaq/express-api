@@ -24,6 +24,9 @@ export class TechnicianResponse {
   totalBreakTime: string;
 
   @ApiProperty()
+  totalOvertimeTime: string;
+
+  @ApiProperty()
   createdAt: Date;
 
   @ApiProperty()

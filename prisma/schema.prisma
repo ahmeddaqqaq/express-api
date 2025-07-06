@@ -130,14 +130,30 @@ model Technician {
   status       Boolean       @default(true)
   fName        String
   lName        String
-  startShift   DateTime?
-  endShift     DateTime?
-  startBreak   DateTime?
-  endBreak     DateTime?
   transactions Transaction[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   auditLog     AuditLog[]
+  shifts       Shift[]
+}
+
+model Shift {
+  id            String     @id @default(uuid())
+  technician    Technician @relation(fields: [technicianId], references: [id])
+  technicianId  String
+  date          DateTime   @db.Date
+  startTime     DateTime?
+  endTime       DateTime?
+  breakStart    DateTime?
+  breakEnd      DateTime?
+  overtimeStart DateTime?
+  overtimeEnd   DateTime?
+  shiftType     ShiftType  @default(REGULAR)
+  hourlyRate    Float?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([technicianId, date])
 }
 
 model AddOn {
@@ -195,4 +211,11 @@ enum CarType {
   Crossover
   SUV
   VAN
+}
+
+enum ShiftType {
+  REGULAR
+  WEEKEND
+  HOLIDAY
+  OVERTIME
 }
