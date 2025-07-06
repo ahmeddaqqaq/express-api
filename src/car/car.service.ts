@@ -18,4 +18,17 @@ export class CarService {
     });
     return cars;
   }
+
+  async update(id: string, updateCarDto: CreateCarDto) {
+    await this.prisma.car.update({
+      where: { id },
+      data: updateCarDto,
+    });
+  }
+
+  async delete(id: string) {
+    await this.prisma.car.delete({
+      where: { id },
+    });
+  }
 }

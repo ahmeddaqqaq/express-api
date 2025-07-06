@@ -68,4 +68,27 @@ export class BrandService {
       data,
     };
   }
+
+  async update(id: string, updateBrandDto: CreateBrandDto) {
+    if (updateBrandDto.name) {
+      const existingBrand = await this.prisma.brand.findUnique({
+        where: { name: updateBrandDto.name },
+      });
+
+      if (existingBrand && existingBrand.id !== id) {
+        throw new ConflictException(`Brand already exists`);
+      }
+    }
+
+    await this.prisma.brand.update({
+      where: { id },
+      data: updateBrandDto,
+    });
+  }
+
+  async delete(id: string) {
+    await this.prisma.brand.delete({
+      where: { id },
+    });
+  }
 }

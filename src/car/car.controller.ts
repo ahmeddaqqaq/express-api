@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CarService } from './car.service';
 import { CreateCarDto } from './dto/create-car-dto';
@@ -40,5 +40,37 @@ export class CarController {
   @Get('findMany')
   async findMany() {
     return await this.carService.findMany();
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Patch('update/:id')
+  async update(@Param('id') id: string, @Body() updateCarDto: CreateCarDto) {
+    return await this.carService.update(id, updateCarDto);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Delete('delete/:id')
+  async delete(@Param('id') id: string) {
+    return await this.carService.delete(id);
   }
 }

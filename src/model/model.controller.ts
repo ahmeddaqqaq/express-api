@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ModelService } from './model.service';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateModelDto } from './dto/create-model-dto';
@@ -40,5 +40,37 @@ export class ModelController {
   @Get('findMany')
   async findMany() {
     return await this.modelService.findMany();
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Patch('update/:id')
+  async update(@Param('id') id: string, @Body() updateModelDto: CreateModelDto) {
+    return await this.modelService.update(id, updateModelDto);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Delete('delete/:id')
+  async delete(@Param('id') id: string) {
+    return await this.modelService.delete(id);
   }
 }
