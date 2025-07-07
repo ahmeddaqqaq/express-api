@@ -1,11 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 import { CarService } from './car.service';
 import { CreateCarDto } from './dto/create-car-dto';
 import { CarResponse } from './dto/response';
 
 @ApiTags('Car')
 @Controller('car')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class CarController {
   constructor(private readonly carService: CarService) {}
 

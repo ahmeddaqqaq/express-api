@@ -1,11 +1,25 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ModelService } from './model.service';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateModelDto } from './dto/create-model-dto';
 import { ModelResponse } from './dto/response';
 
 @ApiTags('Model')
 @Controller('model')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class ModelController {
   constructor(private readonly modelService: ModelService) {}
 
@@ -54,7 +68,10 @@ export class ModelController {
     },
   })
   @Patch('update/:id')
-  async update(@Param('id') id: string, @Body() updateModelDto: CreateModelDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateModelDto: CreateModelDto,
+  ) {
     return await this.modelService.update(id, updateModelDto);
   }
 

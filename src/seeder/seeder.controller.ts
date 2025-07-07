@@ -8,18 +8,24 @@ import {
   UseInterceptors,
   BadRequestException,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SeederService } from './seeder.service';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import * as fs from 'fs';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 interface SeedByCsvPathDto {
   csvFilePath: string;
 }
 
 @Controller('seeder')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class SeederController {
   private readonly logger = new Logger(SeederController.name);
 

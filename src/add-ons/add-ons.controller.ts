@@ -1,12 +1,28 @@
-import { Body, Controller, Get, Post, Query, Param, ParseUUIDPipe, Delete, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Param,
+  ParseUUIDPipe,
+  Delete,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { AddOnsService } from './add-ons.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateAddOnDto } from './dto/create-add-on-dto';
 import { AddOnsManyResponse, AddOnsResponse } from './dto/respons';
 import { PaginationDto } from 'src/dto/pagination.dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Add-ons')
 @Controller('add-ons')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class AddOnsController {
   constructor(private readonly addOnsService: AddOnsService) {}
 

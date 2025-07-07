@@ -9,6 +9,7 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import {
@@ -26,9 +27,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { TransactionFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { CalculateTotalDto } from './dto/calculate-total.dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Transaction')
 @Controller('transaction')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 

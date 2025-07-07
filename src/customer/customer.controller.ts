@@ -15,9 +15,14 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { CustomerResponse, CustomersManyResponse } from './responses';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { CustomerFilterDto } from './dto/filter-dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Customer')
 @Controller('customer')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 

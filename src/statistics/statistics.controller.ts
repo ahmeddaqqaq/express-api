@@ -1,13 +1,18 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 import { ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { CardStatsResponse, CompletionRatioResponse } from './models/response';
 import { StatsFilterDto } from './models/stats-filter.dto';
 import { RevenueSummary } from './models/revenue.response';
 import { TopCustomer } from './models/top-customer-response';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Statistics')
 @Controller('statistics')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN')
 export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
 

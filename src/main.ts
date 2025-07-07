@@ -6,6 +6,7 @@ import { ValidationPipe } from './pipes/validation.pipe';
 import { PrismaService } from './prisma/prisma.service';
 import * as express from 'express';
 import { join } from 'path';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix(globalPrefix);
   app.useGlobalPipes(new ValidationPipe());
+  app.use(cookieParser());
   app.enableCors({
     origin: [
       'http://localhost:3000', // Local development

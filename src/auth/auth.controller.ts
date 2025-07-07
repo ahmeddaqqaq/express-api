@@ -1,9 +1,12 @@
-import { Controller, Post, Body, Res, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Res, Req, UnauthorizedException, Get, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { SigninDto } from './dto/login.dto';
 import { Response, Request } from 'express';
+import { JwtAuthGuard } from './auth.guard';
+import { User } from './user.decorator';
+import { UserInfoResponse } from './dto/user-info.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -104,5 +107,19 @@ export class AuthController {
     });
 
     return this.authService.signOut();
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('auth')
+  @ApiOperation({ summary: 'Get current user information' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User information retrieved successfully',
+    type: UserInfoResponse 
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getCurrentUser(@User() user: any): Promise<UserInfoResponse> {
+    return this.authService.getUserInfo(user.userId);
   }
 }

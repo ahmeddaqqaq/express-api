@@ -1,5 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { BrandService } from './brand.service';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateBrandDto } from './dto/create-brand-dto';
 import { BrandManyResponse, BrandResponse } from './dto/response';
@@ -8,6 +21,8 @@ import { PaginationDto } from 'src/dto/pagination.dto';
 
 @ApiTags('Brand')
 @Controller('brand')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class BrandController {
   constructor(private readonly brandService: BrandService) {}
 
@@ -51,7 +66,10 @@ export class BrandController {
     },
   })
   @Patch('update/:id')
-  async update(@Param('id') id: string, @Body() updateBrandDto: CreateBrandDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateBrandDto: CreateBrandDto,
+  ) {
     return await this.brandService.update(id, updateBrandDto);
   }
 

@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Delete,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -15,9 +16,14 @@ import { CreateTechnicianDto } from './dto/create-technician-dto';
 import { TechnicianManyResponse } from './dto/response';
 import { TechnicianFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Technician')
 @Controller('technician')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 

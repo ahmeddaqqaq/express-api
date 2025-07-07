@@ -1,13 +1,29 @@
-import { Body, Controller, Get, Post, Query, Param, ParseUUIDPipe, Delete, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Param,
+  ParseUUIDPipe,
+  Delete,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { SupervisorService } from './supervisor.service';
 import { ApiOkResponse, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateSuperVisorDto } from './dto/create-supervisor.dto';
 import { SupervisorManyResponse } from './dto/response';
 import { SupervisorFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
+import { JwtAuthGuard } from 'src/auth/auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Roles } from 'src/auth/roles.decorator';
 
 @ApiTags('Supervisor')
 @Controller('supervisor')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPERVISOR')
 export class SupervisorController {
   constructor(private readonly supervisorService: SupervisorService) {}
 

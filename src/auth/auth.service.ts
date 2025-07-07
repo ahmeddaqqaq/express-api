@@ -127,4 +127,31 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
+
+  async getUserInfo(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        mobileNumber: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return {
+      userId: user.id,
+      name: user.name,
+      mobileNumber: user.mobileNumber,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    };
+  }
 }
