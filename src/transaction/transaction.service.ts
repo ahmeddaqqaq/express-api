@@ -418,42 +418,6 @@ export class TransactionService {
     // 💡 Get the carType from car.model
     const carType = transaction.car.model?.type;
 
-    // 🔍 Fetch the correct price for the service & car type
-    let servicePrice = 0;
-    if (
-      updateTransactionDto.status === TransactionStatus.completed &&
-      carType
-    ) {
-      const priceByType = await this.prisma.servicePrice.findFirst({
-        where: {
-          serviceId: transaction.service.id,
-          carType: carType,
-        },
-      });
-
-      if (!priceByType) {
-        throw new NotFoundException(
-          `No price found for service ${transaction.service.name} and car type ${carType}`,
-        );
-      }
-
-      servicePrice = priceByType.price;
-
-      const addOnsPrice = transaction.addOns.reduce(
-        (sum, addOn) => sum + addOn.price,
-        0,
-      );
-
-      const totalAmount = servicePrice + addOnsPrice;
-
-      await this.prisma.invoice.create({
-        data: {
-          transactionId: transaction.id,
-          totalAmount,
-        },
-      });
-    }
-
     // Prepare update data
     const updateData: any = {
       status: updateTransactionDto.status,
@@ -489,7 +453,40 @@ export class TransactionService {
         invoice: true,
       },
     });
+    let servicePrice = 0;
+    if (
+      updateTransactionDto.status === TransactionStatus.completed &&
+      carType
+    ) {
+      const priceByType = await this.prisma.servicePrice.findFirst({
+        where: {
+          serviceId: transaction.service.id,
+          carType: carType,
+        },
+      });
 
+      if (!priceByType) {
+        throw new NotFoundException(
+          `No price found for service ${transaction.service.name} and car type ${carType}`,
+        );
+      }
+
+      servicePrice = priceByType.price;
+
+      const addOnsPrice = transaction.addOns.reduce(
+        (sum, addOn) => sum + addOn.price,
+        0,
+      );
+
+      const totalAmount = servicePrice + addOnsPrice;
+
+      await this.prisma.invoice.create({
+        data: {
+          transactionId: transaction.id,
+          totalAmount,
+        },
+      });
+    }
     if (updateTransactionDto.status === TransactionStatus.completed) {
       const customer = await this.prisma.customer.findUnique({
         where: { id: transaction.customerId },
