@@ -5,6 +5,11 @@ import { CardStatsResponse, CompletionRatioResponse } from './models/response';
 import { StatsFilterDto } from './models/stats-filter.dto';
 import { RevenueSummary } from './models/revenue.response';
 import { TopCustomer } from './models/top-customer-response';
+import {
+  PeakAnalysisResponse,
+  TechnicianUtilizationResponse,
+  ServiceStageBottleneckResponse,
+} from './models/operational-insights.response';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -91,5 +96,56 @@ export class StatisticsController {
     @Query('limit') limit = 5,
   ) {
     return await this.statisticsService.getTopCustomers(filter, limit);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+    type: PeakAnalysisResponse,
+  })
+  @Get('peakAnalysis')
+  async getPeakAnalysis(@Query() filter: StatsFilterDto) {
+    return await this.statisticsService.getPeakAnalysis(filter);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+    type: [TechnicianUtilizationResponse],
+  })
+  @Get('technicianUtilization')
+  async getTechnicianUtilization(@Query() filter: StatsFilterDto) {
+    return await this.statisticsService.getTechnicianUtilization(filter);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+    type: [ServiceStageBottleneckResponse],
+  })
+  @Get('stageBottlenecks')
+  async getServiceStageBottlenecks(@Query() filter: StatsFilterDto) {
+    return await this.statisticsService.getServiceStageBottlenecks(filter);
   }
 }

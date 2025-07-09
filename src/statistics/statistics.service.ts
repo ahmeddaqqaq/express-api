@@ -7,6 +7,13 @@ import {
   ServiceRevenue,
 } from './models/revenue.response';
 import { TopCustomer } from './models/top-customer-response';
+import {
+  PeakHoursResponse,
+  PeakDaysResponse,
+  TechnicianUtilizationResponse,
+  ServiceStageBottleneckResponse,
+  PeakAnalysisResponse,
+} from './models/operational-insights.response';
 
 @Injectable()
 export class StatisticsService {
@@ -305,5 +312,176 @@ export class StatisticsService {
     customersWithStats.sort((a, b) => b.totalSpent - a.totalSpent);
 
     return customersWithStats.slice(0, limit);
+  }
+
+  async getPeakAnalysis(filter?: StatsFilterDto): Promise<PeakAnalysisResponse> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: new Date(),
+        };
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    // Peak Hours Analysis
+    const hourCounts = new Map<number, number>();
+    const dayCounts = new Map<number, number>();
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    transactions.forEach(transaction => {
+      const date = new Date(transaction.createdAt);
+      const hour = date.getHours();
+      const dayOfWeek = date.getDay();
+
+      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      dayCounts.set(dayOfWeek, (dayCounts.get(dayOfWeek) || 0) + 1);
+    });
+
+    const totalTransactions = transactions.length;
+
+    // Convert to response format
+    const peakHours: PeakHoursResponse[] = Array.from(hourCounts.entries())
+      .map(([hour, count]) => ({
+        hour,
+        transactionCount: count,
+        percentage: totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
+      }))
+      .sort((a, b) => b.transactionCount - a.transactionCount);
+
+    const peakDays: PeakDaysResponse[] = Array.from(dayCounts.entries())
+      .map(([dayOfWeek, count]) => ({
+        dayOfWeek,
+        dayName: dayNames[dayOfWeek],
+        transactionCount: count,
+        percentage: totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
+      }))
+      .sort((a, b) => b.transactionCount - a.transactionCount);
+
+    return {
+      peakHours,
+      peakDays,
+    };
+  }
+
+  async getTechnicianUtilization(filter?: StatsFilterDto): Promise<TechnicianUtilizationResponse[]> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: new Date(),
+        };
+
+    const technicians = await this.prisma.technician.findMany({
+      where: {
+        status: true, // Only active technicians
+      },
+      include: {
+        transactions: {
+          where: {
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+          },
+        },
+      },
+    });
+
+    const utilizationData: TechnicianUtilizationResponse[] = technicians.map(technician => {
+      const totalTransactions = technician.transactions.length;
+      const completedTransactions = technician.transactions.filter(t => t.status === 'completed').length;
+      const inProgressTransactions = technician.transactions.filter(t => 
+        ['stageOne', 'stageTwo', 'stageThree'].includes(t.status)
+      ).length;
+
+      // Calculate utilization rate based on total transactions assigned
+      const utilizationRate = totalTransactions > 0 ? (totalTransactions / Math.max(totalTransactions, 1)) * 100 : 0;
+      const completionRate = totalTransactions > 0 ? (completedTransactions / totalTransactions) * 100 : 0;
+
+      return {
+        technicianId: technician.id,
+        technicianName: `${technician.fName} ${technician.lName}`,
+        totalTransactions,
+        completedTransactions,
+        inProgressTransactions,
+        utilizationRate,
+        completionRate,
+      };
+    });
+
+    return utilizationData.sort((a, b) => b.utilizationRate - a.utilizationRate);
+  }
+
+  async getServiceStageBottlenecks(filter?: StatsFilterDto): Promise<ServiceStageBottleneckResponse[]> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: new Date(),
+        };
+
+    // Get all transactions with their stage progression
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+        status: {
+          in: ['stageOne', 'stageTwo', 'stageThree', 'completed'],
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    // Calculate average time in each stage
+    const stageStats = {
+      scheduled: { totalTime: 0, count: 0 },
+      stageOne: { totalTime: 0, count: 0 },
+      stageTwo: { totalTime: 0, count: 0 },
+      stageThree: { totalTime: 0, count: 0 },
+    };
+
+    transactions.forEach(transaction => {
+      const createdTime = new Date(transaction.createdAt).getTime();
+      const updatedTime = new Date(transaction.updatedAt).getTime();
+      const timeInStage = (updatedTime - createdTime) / (1000 * 60 * 60); // Convert to hours
+
+      if (transaction.status in stageStats) {
+        stageStats[transaction.status].totalTime += timeInStage;
+        stageStats[transaction.status].count += 1;
+      }
+    });
+
+    // Calculate bottleneck scores and averages
+    const bottleneckData: ServiceStageBottleneckResponse[] = Object.entries(stageStats).map(([stage, stats]) => {
+      const averageTime = stats.count > 0 ? stats.totalTime / stats.count : 0;
+      const bottleneckScore = averageTime * stats.count; // Higher time and count = higher bottleneck
+
+      return {
+        stage,
+        averageTimeInStage: averageTime,
+        transactionCount: stats.count,
+        bottleneckScore,
+      };
+    });
+
+    return bottleneckData.sort((a, b) => b.bottleneckScore - a.bottleneckScore);
   }
 }
