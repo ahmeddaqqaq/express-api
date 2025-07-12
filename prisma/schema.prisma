@@ -23,6 +23,7 @@ model Image {
   key       String   @unique
   url       String
   isActive  Boolean  @default(true)
+  uploadedAtStage TransactionStatus? // Track which stage the image was uploaded in
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

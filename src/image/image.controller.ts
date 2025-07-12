@@ -11,6 +11,7 @@ import {
   HttpException,
   HttpStatus,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -20,10 +21,12 @@ import {
   ApiConsumes,
   ApiOperation,
   ApiResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { FilterImagesDto } from './dto/filter-images.dto';
 
 @Controller('images')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -54,8 +57,16 @@ export class ImageController {
   }
 
   @Get()
-  async fetchAll() {
-    return this.imageService.getImages();
+  @ApiOperation({ summary: 'Get all images with optional stage filtering' })
+  @ApiQuery({
+    name: 'uploadedAtStage',
+    required: false,
+    description: 'Filter images by upload stage',
+    enum: ['scheduled', 'stageOne', 'stageTwo', 'stageThree', 'completed', 'cancelled'],
+  })
+  @ApiResponse({ status: 200, description: 'Images retrieved successfully' })
+  async fetchAll(@Query() filter: FilterImagesDto) {
+    return this.imageService.getImages(filter);
   }
 
   @Get('serve/:key(*)')

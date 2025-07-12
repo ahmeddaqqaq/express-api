@@ -625,6 +625,7 @@ export class TransactionService {
         key,
         url,
         isActive: true,
+        uploadedAtStage: transaction.status,
       };
     });
 
@@ -641,5 +642,57 @@ export class TransactionService {
         images: true,
       },
     });
+  }
+
+  async getTransactionImagesByStage(
+    transactionId: string,
+    stage?: TransactionStatus,
+  ) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        images: {
+          where: stage ? { uploadedAtStage: stage } : {},
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
+    }
+
+    return transaction.images;
+  }
+
+  async getAllImagesGroupedByStage(transactionId: string) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        images: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
+    }
+
+    // Group images by stage
+    const imagesByStage = transaction.images.reduce((acc, image) => {
+      const stage = image.uploadedAtStage || 'unknown';
+      if (!acc[stage]) {
+        acc[stage] = [];
+      }
+      acc[stage].push(image);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    return imagesByStage;
   }
 }

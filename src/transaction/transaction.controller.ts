@@ -30,6 +30,7 @@ import { CalculateTotalDto } from './dto/calculate-total.dto';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { TransactionStatus } from '@prisma/client';
 
 @ApiTags('Transaction')
 @Controller('transaction')
@@ -264,5 +265,69 @@ export class TransactionController {
     return this.transactionService.uploadTransactionImages(transactionId, [
       file,
     ]);
+  }
+
+  @Get(':id/images')
+  @ApiOperation({ summary: 'Get transaction images filtered by stage' })
+  @ApiQuery({
+    name: 'stage',
+    required: false,
+    enum: TransactionStatus,
+    description: 'Filter images by upload stage',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Images retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          key: { type: 'string' },
+          url: { type: 'string' },
+          isActive: { type: 'boolean' },
+          uploadedAtStage: { type: 'string', enum: Object.values(TransactionStatus) },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  })
+  async getTransactionImages(
+    @Param('id', ParseUUIDPipe) transactionId: string,
+    @Query('stage') stage?: TransactionStatus,
+  ) {
+    return this.transactionService.getTransactionImagesByStage(transactionId, stage);
+  }
+
+  @Get(':id/images/grouped')
+  @ApiOperation({ summary: 'Get transaction images grouped by upload stage' })
+  @ApiResponse({
+    status: 200,
+    description: 'Images grouped by stage retrieved successfully',
+    schema: {
+      type: 'object',
+      additionalProperties: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            key: { type: 'string' },
+            url: { type: 'string' },
+            isActive: { type: 'boolean' },
+            uploadedAtStage: { type: 'string', enum: Object.values(TransactionStatus) },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  async getTransactionImagesGrouped(
+    @Param('id', ParseUUIDPipe) transactionId: string,
+  ) {
+    return this.transactionService.getAllImagesGroupedByStage(transactionId);
   }
 }

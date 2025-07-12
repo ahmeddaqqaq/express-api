@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { TransactionStatus } from '@prisma/client';
 
 export class ImageResponse {
   @ApiProperty()
@@ -12,6 +13,9 @@ export class ImageResponse {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty({ enum: TransactionStatus, required: false })
+  uploadedAtStage?: TransactionStatus;
 
   @ApiProperty()
   createdAt: Date;

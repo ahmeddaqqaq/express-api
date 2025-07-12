@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../s3/s3.service';
 import { ConfigService } from '@nestjs/config';
+import { TransactionStatus } from '@prisma/client';
+import { FilterImagesDto } from './dto/filter-images.dto';
 
 @Injectable()
 export class ImageService {
@@ -12,7 +14,7 @@ export class ImageService {
     private readonly configService: ConfigService,
   ) {}
 
-  async uploadImage(file: Express.Multer.File) {
+  async uploadImage(file: Express.Multer.File, uploadedAtStage?: TransactionStatus) {
     const key = `images/${Date.now()}-${file.originalname}`;
     await this.s3Service.uploadFile(file, key);
     
@@ -25,6 +27,7 @@ export class ImageService {
         key,
         url,
         isActive: true,
+        uploadedAtStage,
       },
     });
   }
@@ -38,8 +41,15 @@ export class ImageService {
     });
   }
 
-  async getImages() {
+  async getImages(filter?: FilterImagesDto) {
+    const where: any = { isActive: true };
+    
+    if (filter?.uploadedAtStage) {
+      where.uploadedAtStage = filter.uploadedAtStage;
+    }
+
     return this.prisma.image.findMany({
+      where,
       include: {
         transactions: true,
       },
