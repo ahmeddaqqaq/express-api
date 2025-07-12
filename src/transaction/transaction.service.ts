@@ -13,12 +13,14 @@ import { PaginationDto } from 'src/dto/pagination.dto';
 import { S3Service } from 'src/s3/s3.service';
 import axios from 'axios';
 import { CalculateTotalDto } from './dto/calculate-total.dto';
+import { AuditLogService } from 'src/audit-log/audit-log.service';
 
 @Injectable()
 export class TransactionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   logger = new Logger('s3');
@@ -415,6 +417,9 @@ export class TransactionService {
       throw new NotFoundException('Transaction not found');
     }
 
+    // Store original status for phase transition logging
+    const originalStatus = transaction.status;
+
     // 💡 Get the carType from car.model
     const carType = transaction.car.model?.type;
 
@@ -427,6 +432,17 @@ export class TransactionService {
       updateData.technicians = {
         set: updateTransactionDto.technicianIds.map((id) => ({ id })),
       };
+
+      // If technicians are being assigned and status is changing, log assignments
+      if (updateTransactionDto.status && updateTransactionDto.status !== originalStatus) {
+        for (const technicianId of updateTransactionDto.technicianIds) {
+          await this.auditLogService.assignTechnicianToPhase(
+            technicianId,
+            updateTransactionDto.id,
+            updateTransactionDto.status
+          );
+        }
+      }
     }
 
     const OTPCode = this.generateRandomHex();
@@ -487,6 +503,22 @@ export class TransactionService {
         },
       });
     }
+
+    // Log phase transition if status changed
+    if (updateTransactionDto.status && updateTransactionDto.status !== originalStatus) {
+      const technicianId = updateTransactionDto.updatedByTechnicianId || 
+                          updateTransactionDto.technicianIds?.[0];
+      
+      if (technicianId) {
+        await this.auditLogService.logPhaseTransition(
+          technicianId,
+          updateTransactionDto.id,
+          originalStatus,
+          updateTransactionDto.status
+        );
+      }
+    }
+
     if (updateTransactionDto.status === TransactionStatus.completed) {
       const customer = await this.prisma.customer.findUnique({
         where: { id: transaction.customerId },

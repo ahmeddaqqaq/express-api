@@ -1,18 +1,61 @@
 import { Injectable } from '@nestjs/common';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { AuditAction, TransactionStatus } from '@prisma/client';
 
 @Injectable()
 export class AuditLogService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async log(technicianId: string, action: string) {
+  async log(
+    technicianId: string, 
+    action: AuditAction, 
+    transactionId?: string, 
+    phase?: TransactionStatus,
+    metadata?: any,
+    description?: string
+  ) {
     return this.prisma.auditLog.create({
       data: {
         technicianId,
         action,
+        transactionId,
+        phase,
+        metadata,
+        description,
       },
     });
+  }
+
+  async logShiftAction(technicianId: string, action: AuditAction) {
+    return this.log(technicianId, action);
+  }
+
+  async logTransactionAction(
+    technicianId: string, 
+    action: AuditAction, 
+    transactionId: string, 
+    phase?: TransactionStatus,
+    metadata?: any,
+    description?: string
+  ) {
+    return this.log(technicianId, action, transactionId, phase, metadata, description);
+  }
+
+  async logPhaseTransition(
+    technicianId: string, 
+    transactionId: string, 
+    fromPhase: TransactionStatus, 
+    toPhase: TransactionStatus
+  ) {
+    return this.log(
+      technicianId, 
+      AuditAction.PHASE_TRANSITION, 
+      transactionId, 
+      toPhase,
+      { fromPhase, toPhase },
+      `Transaction phase changed from ${fromPhase} to ${toPhase}`
+    );
   }
 
   async findAll({ paginationDto }: { paginationDto: PaginationDto }) {
@@ -23,6 +66,20 @@ export class AuditLogService {
       take: paginationDto.take,
       include: {
         technician: true,
+        transaction: {
+          include: {
+            customer: true,
+            car: {
+              include: {
+                brand: true,
+                model: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
       },
     });
 
@@ -32,6 +89,75 @@ export class AuditLogService {
       take: paginationDto.take,
       data: auditLogs,
     };
+  }
+
+  async findByTransaction(transactionId: string) {
+    return this.prisma.auditLog.findMany({
+      where: { transactionId },
+      include: {
+        technician: true,
+      },
+      orderBy: {
+        timestamp: 'asc',
+      },
+    });
+  }
+
+  async findByTechnician(technicianId: string, paginationDto?: PaginationDto) {
+    const where = { technicianId };
+    
+    if (paginationDto) {
+      const count = await this.prisma.auditLog.count({ where });
+      
+      const auditLogs = await this.prisma.auditLog.findMany({
+        where,
+        skip: paginationDto.skip,
+        take: paginationDto.take,
+        include: {
+          transaction: {
+            include: {
+              customer: true,
+              car: {
+                include: {
+                  brand: true,
+                  model: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          timestamp: 'desc',
+        },
+      });
+
+      return {
+        rows: count,
+        skip: paginationDto.skip,
+        take: paginationDto.take,
+        data: auditLogs,
+      };
+    }
+
+    return this.prisma.auditLog.findMany({
+      where,
+      include: {
+        transaction: {
+          include: {
+            customer: true,
+            car: {
+              include: {
+                brand: true,
+                model: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
   }
 
   async getTechnicianDurations(technicianId: string) {
@@ -183,6 +309,163 @@ export class AuditLogService {
         action: log.action,
         timestamp: log.timestamp,
       })),
+    };
+  }
+
+  // Technician Assignment Methods
+  async assignTechnicianToPhase(
+    technicianId: string, 
+    transactionId: string, 
+    phase: TransactionStatus
+  ) {
+    // Create or update assignment
+    const assignment = await this.prisma.technicianAssignment.upsert({
+      where: {
+        technicianId_transactionId_phase: {
+          technicianId,
+          transactionId,
+          phase,
+        },
+      },
+      update: {
+        isActive: true,
+        assignedAt: new Date(),
+      },
+      create: {
+        technicianId,
+        transactionId,
+        phase,
+        isActive: true,
+      },
+    });
+
+    // Log the assignment
+    await this.logTransactionAction(
+      technicianId,
+      AuditAction.TRANSACTION_ASSIGNED,
+      transactionId,
+      phase,
+      { assignmentId: assignment.id },
+      `Technician assigned to ${phase} phase`
+    );
+
+    return assignment;
+  }
+
+  async startWorkOnTransaction(
+    technicianId: string, 
+    transactionId: string, 
+    phase: TransactionStatus
+  ) {
+    // Update assignment with start time
+    const assignment = await this.prisma.technicianAssignment.updateMany({
+      where: {
+        technicianId,
+        transactionId,
+        phase,
+        isActive: true,
+      },
+      data: {
+        startedAt: new Date(),
+      },
+    });
+
+    // Log the start
+    await this.logTransactionAction(
+      technicianId,
+      AuditAction.TRANSACTION_STARTED,
+      transactionId,
+      phase,
+      {},
+      `Started working on ${phase} phase`
+    );
+
+    return assignment;
+  }
+
+  async completeWorkOnTransaction(
+    technicianId: string, 
+    transactionId: string, 
+    phase: TransactionStatus
+  ) {
+    // Update assignment with completion time
+    const assignment = await this.prisma.technicianAssignment.updateMany({
+      where: {
+        technicianId,
+        transactionId,
+        phase,
+        isActive: true,
+      },
+      data: {
+        completedAt: new Date(),
+        isActive: false,
+      },
+    });
+
+    // Log the completion
+    await this.logTransactionAction(
+      technicianId,
+      AuditAction.TRANSACTION_COMPLETED,
+      transactionId,
+      phase,
+      {},
+      `Completed work on ${phase} phase`
+    );
+
+    return assignment;
+  }
+
+  async getTransactionAssignments(transactionId: string) {
+    return this.prisma.technicianAssignment.findMany({
+      where: { transactionId },
+      include: {
+        technician: true,
+      },
+      orderBy: {
+        assignedAt: 'asc',
+      },
+    });
+  }
+
+  async getTechnicianAssignments(technicianId: string, isActive?: boolean) {
+    const where: any = { technicianId };
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
+
+    return this.prisma.technicianAssignment.findMany({
+      where,
+      include: {
+        transaction: {
+          include: {
+            customer: true,
+            car: {
+              include: {
+                brand: true,
+                model: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+  }
+
+  async getTransactionWorkHistory(transactionId: string) {
+    const assignments = await this.getTransactionAssignments(transactionId);
+    const auditLogs = await this.findByTransaction(transactionId);
+
+    return {
+      assignments,
+      auditLogs,
+      timeline: [...assignments, ...auditLogs].sort((a, b) => {
+        const timeA = 'assignedAt' in a ? a.assignedAt : a.timestamp;
+        const timeB = 'assignedAt' in b ? b.assignedAt : b.timestamp;
+        return timeA.getTime() - timeB.getTime();
+      }),
     };
   }
 }

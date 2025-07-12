@@ -3,7 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTechnicianDto } from './dto/create-technician-dto';
 import { TechnicianFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, AuditAction } from '@prisma/client';
 import { TechnicianManyResponse } from './dto/response';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
 
@@ -116,7 +116,7 @@ export class TechnicianService {
       });
     }
 
-    await this.auditLogService.log(id, 'SHIFT_STARTED');
+    await this.auditLogService.logShiftAction(id, AuditAction.SHIFT_STARTED);
   }
 
   async endShift(id: string) {
@@ -149,7 +149,7 @@ export class TechnicianService {
       },
     });
 
-    await this.auditLogService.log(id, 'SHIFT_ENDED');
+    await this.auditLogService.logShiftAction(id, AuditAction.SHIFT_ENDED);
   }
 
   async startBreak(id: string) {
@@ -183,7 +183,7 @@ export class TechnicianService {
       },
     });
 
-    await this.auditLogService.log(id, 'BREAK_STARTED');
+    await this.auditLogService.logShiftAction(id, AuditAction.BREAK_STARTED);
   }
 
   async endBreak(id: string) {
@@ -216,7 +216,7 @@ export class TechnicianService {
       },
     });
 
-    await this.auditLogService.log(id, 'BREAK_ENDED');
+    await this.auditLogService.logShiftAction(id, AuditAction.BREAK_ENDED);
   }
 
   async update(id: string, updateTechnicianDto: CreateTechnicianDto) {
@@ -260,7 +260,7 @@ export class TechnicianService {
       },
     });
 
-    await this.auditLogService.log(id, 'OVERTIME_STARTED');
+    await this.auditLogService.logShiftAction(id, AuditAction.OVERTIME_STARTED);
   }
 
   async endOvertime(id: string) {
@@ -293,7 +293,7 @@ export class TechnicianService {
       },
     });
 
-    await this.auditLogService.log(id, 'OVERTIME_ENDED');
+    await this.auditLogService.logShiftAction(id, AuditAction.OVERTIME_ENDED);
   }
 
   async getDailyWorkingHours(id: string, date: string) {

@@ -83,25 +83,27 @@ model Model {
 }
 
 model Transaction {
-  id           String            @id @default(uuid())
-  status       TransactionStatus @default(scheduled)
-  customer     Customer          @relation(fields: [customerId], references: [id])
+  id           String                 @id @default(uuid())
+  status       TransactionStatus      @default(scheduled)
+  customer     Customer               @relation(fields: [customerId], references: [id])
   customerId   String
-  car          Car               @relation(fields: [carId], references: [id])
+  car          Car                    @relation(fields: [carId], references: [id])
   carId        String
-  service      Service           @relation(fields: [serviceId], references: [id])
+  service      Service                @relation(fields: [serviceId], references: [id])
   serviceId    String
-  images       Image[]           @relation("TransactionImages")
+  images       Image[]                @relation("TransactionImages")
   addOns       AddOn[]
   technicians  Technician[]
   invoice      Invoice?
   deliverTime  String?
   notes        String?
   OTP          String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  supervisor   Supervisor?       @relation(fields: [supervisorId], references: [id])
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  supervisor   Supervisor?            @relation(fields: [supervisorId], references: [id])
   supervisorId String?
+  auditLogs    AuditLog[]
+  assignments  TechnicianAssignment[]
 }
 
 model Service {
@@ -126,15 +128,16 @@ model ServicePrice {
 }
 
 model Technician {
-  id           String        @id @default(uuid())
-  status       Boolean       @default(true)
+  id           String                 @id @default(uuid())
+  status       Boolean                @default(true)
   fName        String
   lName        String
   transactions Transaction[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
   auditLog     AuditLog[]
   shifts       Shift[]
+  assignments  TechnicianAssignment[]
 }
 
 model Shift {
@@ -184,11 +187,33 @@ model Supervisor {
 }
 
 model AuditLog {
-  id           String     @id @default(uuid())
-  technician   Technician @relation(fields: [technicianId], references: [id])
-  technicianId String
-  action       String
-  timestamp    DateTime   @default(now())
+  id            String       @id @default(uuid())
+  technician    Technician   @relation(fields: [technicianId], references: [id])
+  technicianId  String
+  action        AuditAction
+  timestamp     DateTime     @default(now())
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  transactionId String?
+  phase         TransactionStatus?
+  metadata      Json?
+  description   String?
+}
+
+model TechnicianAssignment {
+  id            String            @id @default(uuid())
+  technician    Technician        @relation(fields: [technicianId], references: [id])
+  technicianId  String
+  transaction   Transaction       @relation(fields: [transactionId], references: [id])
+  transactionId String
+  phase         TransactionStatus
+  assignedAt    DateTime          @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([technicianId, transactionId, phase])
 }
 
 enum TransactionStatus {
@@ -218,4 +243,18 @@ enum ShiftType {
   WEEKEND
   HOLIDAY
   OVERTIME
+}
+
+enum AuditAction {
+  SHIFT_STARTED
+  SHIFT_ENDED
+  BREAK_STARTED
+  BREAK_ENDED
+  OVERTIME_STARTED
+  OVERTIME_ENDED
+  TRANSACTION_ASSIGNED
+  TRANSACTION_STARTED
+  TRANSACTION_COMPLETED
+  PHASE_TRANSITION
+  TECHNICIAN_CHANGED
 }

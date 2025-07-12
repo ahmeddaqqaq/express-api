@@ -29,4 +29,11 @@ export class UpdateTransactionDto {
   @IsArray()
   @IsUUID('4', { each: true })
   technicianIds?: string[];
+
+  @ApiPropertyOptional({
+    description: 'ID of the technician making this update',
+  })
+  @IsOptional()
+  @IsUUID()
+  updatedByTechnicianId?: string;
 }

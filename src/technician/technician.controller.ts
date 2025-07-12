@@ -19,13 +19,18 @@ import { PaginationDto } from 'src/dto/pagination.dto';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { TransactionStatus } from '@prisma/client';
+import { AuditLogService } from 'src/audit-log/audit-log.service';
 
 @ApiTags('Technician')
 @Controller('technician')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'SUPERVISOR')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) {}
+  constructor(
+    private readonly technicianService: TechnicianService,
+    private readonly auditLogService: AuditLogService
+  ) {}
 
   @ApiResponse({
     status: '4XX',
@@ -113,5 +118,39 @@ export class TechnicianController {
   @Delete(':id')
   async delete(@Param('id', ParseUUIDPipe) id: string) {
     return this.technicianService.delete(id);
+  }
+
+  // --- TRANSACTION WORK MANAGEMENT ---
+
+  @Post(':id/start-work')
+  async startWorkOnTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() workData: { transactionId: string; phase: TransactionStatus }
+  ) {
+    return this.auditLogService.startWorkOnTransaction(id, workData.transactionId, workData.phase);
+  }
+
+  @Post(':id/complete-work')
+  async completeWorkOnTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() workData: { transactionId: string; phase: TransactionStatus }
+  ) {
+    return this.auditLogService.completeWorkOnTransaction(id, workData.transactionId, workData.phase);
+  }
+
+  @Get(':id/assignments')
+  async getTechnicianAssignments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('isActive') isActive?: boolean
+  ) {
+    return this.auditLogService.getTechnicianAssignments(id, isActive);
+  }
+
+  @Get(':id/audit-logs')
+  async getTechnicianAuditLogs(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() paginationDto?: PaginationDto
+  ) {
+    return this.auditLogService.findByTechnician(id, paginationDto);
   }
 }
