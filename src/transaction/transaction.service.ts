@@ -433,15 +433,15 @@ export class TransactionService {
         set: updateTransactionDto.technicianIds.map((id) => ({ id })),
       };
 
-      // If technicians are being assigned and status is changing, log assignments
-      if (updateTransactionDto.status && updateTransactionDto.status !== originalStatus) {
-        for (const technicianId of updateTransactionDto.technicianIds) {
-          await this.auditLogService.assignTechnicianToPhase(
-            technicianId,
-            updateTransactionDto.id,
-            updateTransactionDto.status
-          );
-        }
+      // Always log technician assignments when technicians are assigned
+      // Use the new status if provided, otherwise use the current status
+      const assignmentPhase = updateTransactionDto.status || originalStatus;
+      for (const technicianId of updateTransactionDto.technicianIds) {
+        await this.auditLogService.assignTechnicianToPhase(
+          technicianId,
+          updateTransactionDto.id,
+          assignmentPhase
+        );
       }
     }
 
