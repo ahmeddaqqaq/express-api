@@ -9,4 +9,8 @@ export class CreateAddOnDto {
   @ApiProperty()
   @IsNumber()
   price: number;
+
+  @ApiProperty()
+  @IsNumber()
+  posServiceId: number;
 }

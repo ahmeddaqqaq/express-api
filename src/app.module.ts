@@ -18,6 +18,7 @@ import { SupervisorModule } from './supervisor/supervisor.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { SeederModule } from './seeder/seeder.module';
+import { IntegrationModule } from './integration/integration.module';
 import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
@@ -39,6 +40,7 @@ import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
     AuditLogModule,
     AuthModule,
     SeederModule,
+    IntegrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

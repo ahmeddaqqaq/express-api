@@ -14,6 +14,7 @@ import { S3Service } from 'src/s3/s3.service';
 import axios from 'axios';
 import { CalculateTotalDto } from './dto/calculate-total.dto';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
+import { IntegrationService } from 'src/integration/integration.service';
 
 @Injectable()
 export class TransactionService {
@@ -21,9 +22,10 @@ export class TransactionService {
     private readonly prisma: PrismaService,
     private readonly s3Service: S3Service,
     private readonly auditLogService: AuditLogService,
+    private readonly integrationService: IntegrationService,
   ) {}
 
-  logger = new Logger('s3');
+  logger = new Logger('TransactionService');
 
   // Helper functions for UTC+3 timezone handling
   private getStartOfDayUTC3(date: Date): Date {
@@ -112,6 +114,22 @@ export class TransactionService {
       const welcomeMessage =
         'Thank you for choosing RADIANT! Your car will shine in no time, we will notify you once car is ready for collection.';
       await this.sendSMS(customer.mobileNumber, welcomeMessage);
+    }
+
+    // Create POS integration order after transaction creation
+    try {
+      const posOrder = await this.integrationService.createOrderFromTransaction(
+        transaction.id,
+      );
+      const orderData = posOrder.data as any;
+      this.logger.log(
+        `POS order created for transaction ${transaction.id} with order number: ${orderData.orderNumber}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to create POS order for transaction ${transaction.id}:`,
+        error.message,
+      );
     }
 
     return transaction;
@@ -440,7 +458,7 @@ export class TransactionService {
         await this.auditLogService.assignTechnicianToPhase(
           technicianId,
           updateTransactionDto.id,
-          assignmentPhase
+          assignmentPhase,
         );
       }
     }
@@ -505,16 +523,20 @@ export class TransactionService {
     }
 
     // Log phase transition if status changed
-    if (updateTransactionDto.status && updateTransactionDto.status !== originalStatus) {
-      const technicianId = updateTransactionDto.updatedByTechnicianId || 
-                          updateTransactionDto.technicianIds?.[0];
-      
+    if (
+      updateTransactionDto.status &&
+      updateTransactionDto.status !== originalStatus
+    ) {
+      const technicianId =
+        updateTransactionDto.updatedByTechnicianId ||
+        updateTransactionDto.technicianIds?.[0];
+
       if (technicianId) {
         await this.auditLogService.logPhaseTransition(
           technicianId,
           updateTransactionDto.id,
           originalStatus,
-          updateTransactionDto.status
+          updateTransactionDto.status,
         );
       }
     }
@@ -684,14 +706,17 @@ export class TransactionService {
     }
 
     // Group images by stage
-    const imagesByStage = transaction.images.reduce((acc, image) => {
-      const stage = image.uploadedAtStage || 'unknown';
-      if (!acc[stage]) {
-        acc[stage] = [];
-      }
-      acc[stage].push(image);
-      return acc;
-    }, {} as Record<string, any[]>);
+    const imagesByStage = transaction.images.reduce(
+      (acc, image) => {
+        const stage = image.uploadedAtStage || 'unknown';
+        if (!acc[stage]) {
+          acc[stage] = [];
+        }
+        acc[stage].push(image);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
 
     return imagesByStage;
   }

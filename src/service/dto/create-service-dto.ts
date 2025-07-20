@@ -25,6 +25,10 @@ export class CreateServiceDto {
   @IsString()
   name: string;
 
+  @ApiProperty()
+  @IsNumber()
+  posServiceId: number;
+
   @ApiProperty({ type: [ServicePriceDto] })
   @IsArray()
   @ValidateNested({ each: true })
