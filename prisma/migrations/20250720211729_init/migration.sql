@@ -1,8 +1,17 @@
 -- CreateEnum
-CREATE TYPE "TransactionStatus" AS ENUM ('scheduled', 'stageOne', 'stageTwo', 'completed', 'cancelled');
+CREATE TYPE "TransactionStatus" AS ENUM ('scheduled', 'stageOne', 'stageTwo', 'stageThree', 'completed', 'cancelled');
 
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'SUPERVISOR');
+
+-- CreateEnum
+CREATE TYPE "CarType" AS ENUM ('Bike', 'Sedan', 'Crossover', 'SUV', 'VAN');
+
+-- CreateEnum
+CREATE TYPE "ShiftType" AS ENUM ('REGULAR', 'WEEKEND', 'HOLIDAY', 'OVERTIME');
+
+-- CreateEnum
+CREATE TYPE "AuditAction" AS ENUM ('SHIFT_STARTED', 'SHIFT_ENDED', 'BREAK_STARTED', 'BREAK_ENDED', 'OVERTIME_STARTED', 'OVERTIME_ENDED', 'TRANSACTION_ASSIGNED', 'TRANSACTION_STARTED', 'TRANSACTION_COMPLETED', 'PHASE_TRANSITION', 'TECHNICIAN_CHANGED');
 
 -- CreateTable
 CREATE TABLE "user" (
@@ -24,6 +33,7 @@ CREATE TABLE "Image" (
     "key" TEXT NOT NULL,
     "url" TEXT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "uploadedAtStage" "TransactionStatus",
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -75,6 +85,7 @@ CREATE TABLE "Model" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "brandId" TEXT NOT NULL,
+    "type" "CarType" NOT NULL DEFAULT 'Sedan',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -85,14 +96,16 @@ CREATE TABLE "Model" (
 CREATE TABLE "Transaction" (
     "id" TEXT NOT NULL,
     "status" "TransactionStatus" NOT NULL DEFAULT 'scheduled',
+    "isPaid" BOOLEAN NOT NULL DEFAULT false,
     "customerId" TEXT NOT NULL,
     "carId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
     "deliverTime" TEXT,
     "notes" TEXT,
+    "OTP" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "supervisorId" TEXT,
+    "createdById" TEXT NOT NULL,
 
     CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
 );
@@ -101,11 +114,23 @@ CREATE TABLE "Transaction" (
 CREATE TABLE "Service" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "posServiceId" INTEGER NOT NULL,
+
+    CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ServicePrice" (
+    "id" TEXT NOT NULL,
+    "serviceId" TEXT NOT NULL,
+    "carType" "CarType" NOT NULL,
     "price" DOUBLE PRECISION NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "Service_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ServicePrice_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -114,16 +139,29 @@ CREATE TABLE "Technician" (
     "status" BOOLEAN NOT NULL DEFAULT true,
     "fName" TEXT NOT NULL,
     "lName" TEXT NOT NULL,
-    "mobileNumber" TEXT NOT NULL,
-    "workId" TEXT NOT NULL,
-    "startShift" TIMESTAMP(3),
-    "endShift" TIMESTAMP(3),
-    "startBreak" TIMESTAMP(3),
-    "endBreak" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Technician_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Shift" (
+    "id" TEXT NOT NULL,
+    "technicianId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "startTime" TIMESTAMP(3),
+    "endTime" TIMESTAMP(3),
+    "breakStart" TIMESTAMP(3),
+    "breakEnd" TIMESTAMP(3),
+    "overtimeStart" TIMESTAMP(3),
+    "overtimeEnd" TIMESTAMP(3),
+    "shiftType" "ShiftType" NOT NULL DEFAULT 'REGULAR',
+    "hourlyRate" DOUBLE PRECISION,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Shift_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -133,6 +171,7 @@ CREATE TABLE "AddOn" (
     "price" DOUBLE PRECISION NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "posServiceId" INTEGER NOT NULL,
 
     CONSTRAINT "AddOn_pkey" PRIMARY KEY ("id")
 );
@@ -163,10 +202,41 @@ CREATE TABLE "Supervisor" (
 CREATE TABLE "AuditLog" (
     "id" TEXT NOT NULL,
     "technicianId" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
+    "action" "AuditAction" NOT NULL,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "transactionId" TEXT,
+    "phase" "TransactionStatus",
+    "metadata" JSONB,
+    "description" TEXT,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PosOrder" (
+    "id" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "data" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PosOrder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "TechnicianAssignment" (
+    "id" TEXT NOT NULL,
+    "technicianId" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "phase" "TransactionStatus" NOT NULL,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TechnicianAssignment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -212,13 +282,22 @@ CREATE UNIQUE INDEX "Brand_imageId_key" ON "Brand"("imageId");
 CREATE UNIQUE INDEX "Model_brandId_name_key" ON "Model"("brandId", "name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Technician_workId_key" ON "Technician"("workId");
+CREATE UNIQUE INDEX "ServicePrice_serviceId_carType_key" ON "ServicePrice"("serviceId", "carType");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Shift_technicianId_date_key" ON "Shift"("technicianId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AddOn_name_key" ON "AddOn"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Invoice_transactionId_key" ON "Invoice"("transactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PosOrder_transactionId_key" ON "PosOrder"("transactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TechnicianAssignment_technicianId_transactionId_phase_key" ON "TechnicianAssignment"("technicianId", "transactionId", "phase");
 
 -- CreateIndex
 CREATE INDEX "_TransactionImages_B_index" ON "_TransactionImages"("B");
@@ -239,9 +318,6 @@ ALTER TABLE "Car" ADD CONSTRAINT "Car_customerId_fkey" FOREIGN KEY ("customerId"
 ALTER TABLE "Car" ADD CONSTRAINT "Car_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "Model"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Brand" ADD CONSTRAINT "Brand_imageId_fkey" FOREIGN KEY ("imageId") REFERENCES "Image"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Model" ADD CONSTRAINT "Model_brandId_fkey" FOREIGN KEY ("brandId") REFERENCES "Brand"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -254,13 +330,31 @@ ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_carId_fkey" FOREIGN KEY ("
 ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_supervisorId_fkey" FOREIGN KEY ("supervisorId") REFERENCES "Supervisor"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Supervisor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ServicePrice" ADD CONSTRAINT "ServicePrice_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Shift" ADD CONSTRAINT "Shift_technicianId_fkey" FOREIGN KEY ("technicianId") REFERENCES "Technician"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_technicianId_fkey" FOREIGN KEY ("technicianId") REFERENCES "Technician"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PosOrder" ADD CONSTRAINT "PosOrder_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TechnicianAssignment" ADD CONSTRAINT "TechnicianAssignment_technicianId_fkey" FOREIGN KEY ("technicianId") REFERENCES "Technician"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TechnicianAssignment" ADD CONSTRAINT "TechnicianAssignment_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "Transaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_TransactionImages" ADD CONSTRAINT "_TransactionImages_A_fkey" FOREIGN KEY ("A") REFERENCES "Image"("id") ON DELETE CASCADE ON UPDATE CASCADE;
