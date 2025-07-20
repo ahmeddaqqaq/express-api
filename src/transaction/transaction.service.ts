@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTransactionDto } from './dto/transaction-dto';
-import { UpdateTransactionDto } from './dto/update-transaction-dto';
+import {
+  UpdateTransactionDto,
+  EditScheduledTransactionDto,
+} from './dto/update-transaction-dto';
 import { Prisma, TransactionStatus } from '@prisma/client';
 import { TransactionFilterDto } from './dto/filter.dto';
 import { PaginationDto } from 'src/dto/pagination.dto';
@@ -77,11 +80,7 @@ export class TransactionService {
         customer: { connect: { id: createTransactionDto.customerId } },
         car: { connect: { id: createTransactionDto.carId } },
         service: { connect: { id: createTransactionDto.serviceId } },
-        // technicians: {
-        //   connect:
-        //     createTransactionDto.technicianIds.map((id) => ({ id })) || [],
-        // },
-        supervisor: { connect: { id: createTransactionDto.supervisorId } },
+        createdBy: { connect: { id: createTransactionDto.createdById } },
         addOns: {
           connect: createTransactionDto.addOnsIds?.map((id) => ({ id })) || [],
         },
@@ -98,9 +97,13 @@ export class TransactionService {
         },
         service: true,
         addOns: true,
-        technicians: true,
-        supervisor: true,
+        createdBy: true,
         images: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
       },
     });
     const customer = await this.prisma.customer.findUnique({
@@ -142,9 +145,11 @@ export class TransactionService {
     filterDto: TransactionFilterDto;
     paginationDto: PaginationDto;
   }) {
-    //search by full name
-    const where: Prisma.TransactionWhereInput = {
-      OR: [
+    const where: Prisma.TransactionWhereInput = {};
+
+    // Search filtering
+    if (filterDto.search) {
+      where.OR = [
         {
           customer: {
             OR: [
@@ -173,8 +178,19 @@ export class TransactionService {
             mode: 'insensitive',
           },
         },
-      ],
-    };
+      ];
+    }
+
+    // Date filtering
+    if (filterDto.date) {
+      const startOfDay = this.getStartOfDayUTC3(new Date(filterDto.date));
+      const endOfDay = this.getEndOfDayUTC3(new Date(filterDto.date));
+
+      where.createdAt = {
+        gte: startOfDay,
+        lte: endOfDay,
+      };
+    }
 
     const count = await this.prisma.transaction.count({ where });
 
@@ -184,7 +200,7 @@ export class TransactionService {
       where,
       include: {
         customer: true,
-        supervisor: true,
+        createdBy: true,
         car: {
           include: {
             brand: true,
@@ -194,6 +210,11 @@ export class TransactionService {
         images: true,
         service: true,
         addOns: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -229,7 +250,11 @@ export class TransactionService {
       where,
       include: {
         car: { include: { brand: true, model: true } },
-        technicians: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         customer: true,
         service: true,
         addOns: true,
@@ -261,7 +286,11 @@ export class TransactionService {
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
-        technicians: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         service: true,
         addOns: true,
         images: true,
@@ -305,7 +334,11 @@ export class TransactionService {
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
-        technicians: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         service: true,
         addOns: true,
         images: true,
@@ -347,7 +380,11 @@ export class TransactionService {
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
-        technicians: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         service: true,
         addOns: true,
         images: true,
@@ -389,7 +426,11 @@ export class TransactionService {
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
-        technicians: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         service: true,
         addOns: true,
         invoice: true,
@@ -428,6 +469,8 @@ export class TransactionService {
             model: true,
           },
         },
+        assignments: true,
+        images: true,
       },
     });
 
@@ -437,6 +480,20 @@ export class TransactionService {
 
     // Store original status for phase transition logging
     const originalStatus = transaction.status;
+
+    // Validate phase progression if status is changing
+    if (
+      updateTransactionDto.status &&
+      updateTransactionDto.status !== originalStatus
+    ) {
+      const validation = await this.validatePhaseProgression(
+        updateTransactionDto.id,
+        updateTransactionDto.status,
+      );
+      if (!validation.isValid) {
+        throw new BadRequestException(validation.message);
+      }
+    }
 
     // 💡 Get the carType from car.model
     const carType = transaction.car.model?.type;
@@ -481,8 +538,12 @@ export class TransactionService {
         },
         service: true,
         addOns: true,
-        technicians: true,
-        supervisor: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
+        createdBy: true,
         images: true,
         invoice: true,
       },
@@ -559,6 +620,99 @@ export class TransactionService {
     }
 
     return updatedTransaction;
+  }
+
+  async editScheduledTransaction(editDto: EditScheduledTransactionDto) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: editDto.id },
+      include: {
+        service: true,
+        addOns: true,
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    if (transaction.status !== 'scheduled') {
+      throw new BadRequestException(
+        'Transaction can only be edited when in scheduled status',
+      );
+    }
+
+    // Validate service exists if provided
+    if (editDto.serviceId) {
+      const service = await this.prisma.service.findUnique({
+        where: { id: editDto.serviceId },
+      });
+      if (!service) {
+        throw new NotFoundException('Service not found');
+      }
+    }
+
+    // Validate addons exist if provided
+    if (editDto.addOnsIds && editDto.addOnsIds.length > 0) {
+      const addOns = await this.prisma.addOn.findMany({
+        where: {
+          id: { in: editDto.addOnsIds },
+        },
+      });
+      if (addOns.length !== editDto.addOnsIds.length) {
+        throw new BadRequestException('One or more addons not found');
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+
+    if (editDto.serviceId) {
+      updateData.service = { connect: { id: editDto.serviceId } };
+    }
+
+    if (editDto.addOnsIds !== undefined) {
+      if (editDto.addOnsIds.length === 0) {
+        // If empty array, disconnect all addons
+        updateData.addOns = {
+          set: [],
+        };
+      } else {
+        updateData.addOns = {
+          set: editDto.addOnsIds.map((id: string) => ({ id })),
+        };
+      }
+    }
+
+    if (editDto.deliverTime !== undefined) {
+      updateData.deliverTime = editDto.deliverTime;
+    }
+
+    if (editDto.notes !== undefined) {
+      updateData.notes = editDto.notes;
+    }
+
+    return await this.prisma.transaction.update({
+      where: { id: editDto.id },
+      data: updateData,
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
+        addOns: true,
+        createdBy: true,
+        images: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
+      },
+    });
   }
 
   async calculateTotal(calculateTotalDto: CalculateTotalDto) {
@@ -719,5 +873,219 @@ export class TransactionService {
     );
 
     return imagesByStage;
+  }
+
+  async assignTechnicianToPhase(
+    transactionId: string,
+    technicianId: string,
+    phase: 'stageOne' | 'stageTwo' | 'stageThree',
+  ) {
+    if (!['stageOne', 'stageTwo', 'stageThree'].includes(phase)) {
+      throw new BadRequestException(
+        'Invalid phase. Only stageOne, stageTwo, and stageThree are allowed for technician assignments.',
+      );
+    }
+
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        assignments: true,
+        images: true,
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    const technician = await this.prisma.technician.findUnique({
+      where: { id: technicianId },
+    });
+
+    if (!technician) {
+      throw new NotFoundException('Technician not found');
+    }
+
+    const existingAssignment =
+      await this.prisma.technicianAssignment.findUnique({
+        where: {
+          technicianId_transactionId_phase: {
+            technicianId,
+            transactionId,
+            phase: phase as any,
+          },
+        },
+      });
+
+    if (existingAssignment) {
+      throw new BadRequestException(
+        `Technician is already assigned to ${phase} for this transaction`,
+      );
+    }
+
+    return await this.prisma.technicianAssignment.create({
+      data: {
+        technicianId,
+        transactionId,
+        phase: phase as any,
+      },
+      include: {
+        technician: true,
+        transaction: true,
+      },
+    });
+  }
+
+  async validatePhaseProgression(
+    transactionId: string,
+    targetPhase: string,
+  ): Promise<{ isValid: boolean; message: string }> {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
+        images: true,
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    const currentPhase = transaction.status;
+
+    if (targetPhase === 'stageOne' && currentPhase === 'scheduled') {
+      return { isValid: true, message: 'Can move from scheduled to stageOne' };
+    }
+
+    if (targetPhase === 'stageTwo' && currentPhase === 'stageOne') {
+      const stageOneAssignment = transaction.assignments.find(
+        (a) => a.phase === 'stageOne' && a.isActive,
+      );
+      const stageOneImages = transaction.images.filter(
+        (img) => img.uploadedAtStage === 'stageOne',
+      );
+
+      if (!stageOneAssignment) {
+        return {
+          isValid: false,
+          message:
+            'Cannot move to stageTwo: No technician assigned to stageOne',
+        };
+      }
+
+      if (stageOneImages.length === 0) {
+        return {
+          isValid: false,
+          message: 'Cannot move to stageTwo: No images uploaded for stageOne',
+        };
+      }
+
+      return { isValid: true, message: 'Can move from stageOne to stageTwo' };
+    }
+
+    if (targetPhase === 'stageThree' && currentPhase === 'stageTwo') {
+      const stageTwoAssignment = transaction.assignments.find(
+        (a) => a.phase === 'stageTwo' && a.isActive,
+      );
+      const stageTwoImages = transaction.images.filter(
+        (img) => img.uploadedAtStage === 'stageTwo',
+      );
+
+      if (!stageTwoAssignment) {
+        return {
+          isValid: false,
+          message:
+            'Cannot move to stageThree: No technician assigned to stageTwo',
+        };
+      }
+
+      if (stageTwoImages.length === 0) {
+        return {
+          isValid: false,
+          message: 'Cannot move to stageThree: No images uploaded for stageTwo',
+        };
+      }
+
+      return { isValid: true, message: 'Can move from stageTwo to stageThree' };
+    }
+
+    if (targetPhase === 'completed' && currentPhase === 'stageThree') {
+      const stageThreeAssignment = transaction.assignments.find(
+        (a) => a.phase === 'stageThree' && a.isActive,
+      );
+      const stageThreeImages = transaction.images.filter(
+        (img) => img.uploadedAtStage === 'stageThree',
+      );
+
+      if (!stageThreeAssignment) {
+        return {
+          isValid: false,
+          message: 'Cannot complete: No technician assigned to stageThree',
+        };
+      }
+
+      if (stageThreeImages.length === 0) {
+        return {
+          isValid: false,
+          message: 'Cannot complete: No images uploaded for stageThree',
+        };
+      }
+
+      return {
+        isValid: true,
+        message: 'Can move from stageThree to completed',
+      };
+    }
+
+    return {
+      isValid: false,
+      message: `Invalid phase transition from ${currentPhase} to ${targetPhase}`,
+    };
+  }
+
+  async getTransactionAssignments(transactionId: string) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        assignments: {
+          include: {
+            technician: true,
+          },
+          orderBy: {
+            assignedAt: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    return transaction.assignments;
+  }
+
+  async getPhaseAssignments(
+    transactionId: string,
+    phase: 'stageOne' | 'stageTwo' | 'stageThree',
+  ) {
+    return await this.prisma.technicianAssignment.findMany({
+      where: {
+        transactionId,
+        phase: phase as any,
+        isActive: true,
+      },
+      include: {
+        technician: true,
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
   }
 }

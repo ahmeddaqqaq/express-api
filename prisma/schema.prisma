@@ -86,6 +86,7 @@ model Model {
 model Transaction {
   id           String                 @id @default(uuid())
   status       TransactionStatus      @default(scheduled)
+  isPaid       Boolean                @default(false)
   customer     Customer               @relation(fields: [customerId], references: [id])
   customerId   String
   car          Car                    @relation(fields: [carId], references: [id])
@@ -101,8 +102,8 @@ model Transaction {
   OTP          String?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
-  supervisor   Supervisor?            @relation(fields: [supervisorId], references: [id])
-  supervisorId String?
+  createdBy    Supervisor             @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById  String
   auditLogs    AuditLog[]
   assignments  TechnicianAssignment[]
   posOrder     PosOrder?
@@ -182,12 +183,12 @@ model Invoice {
 }
 
 model Supervisor {
-  id           String        @id @default(uuid())
-  firstName    String
-  lastName     String
-  transactions Transaction[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                  String        @id @default(uuid())
+  firstName           String
+  lastName            String
+  createdTransactions Transaction[] @relation("CreatedBy")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 }
 
 model AuditLog {

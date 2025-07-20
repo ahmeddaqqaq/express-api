@@ -1,17 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsMobilePhone, MinLength } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class SigninDto {
   @ApiProperty({
-    description: 'Mobile number used to sign in',
-    example: '07XXXXXXXX',
+    description: 'Jordanian mobile number used for authentication',
+    example: '0791234567',
+    pattern: '^07[789]\\d{7}$'
   })
   @IsString()
-  @IsMobilePhone()
   mobileNumber: string;
 
   @ApiProperty({
-    description: 'User password',
+    description: 'User password (minimum 6 characters)',
+    example: 'securePassword123',
+    minLength: 6
   })
   @IsString()
   @MinLength(6)

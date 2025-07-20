@@ -41,10 +41,26 @@ export class TransactionResponse {
   images: [ImageResponse];
 
   @ApiProperty({ type: () => SupervisorResponse })
-  supervisor: SupervisorResponse;
+  createdBy: SupervisorResponse;
 
-  @ApiProperty({ type: () => [TechnicianResponse] })
-  technicians: TechnicianResponse[];
+  @ApiProperty({ 
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        technicianId: { type: 'string' },
+        transactionId: { type: 'string' },
+        phase: { type: 'string' },
+        assignedAt: { type: 'string', format: 'date-time' },
+        startedAt: { type: 'string', format: 'date-time', nullable: true },
+        completedAt: { type: 'string', format: 'date-time', nullable: true },
+        isActive: { type: 'boolean' },
+        technician: { type: 'object' },
+      },
+    },
+  })
+  assignments: any[];
 
   @ApiProperty()
   deliverTime: string;

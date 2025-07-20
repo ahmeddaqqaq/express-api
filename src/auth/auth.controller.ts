@@ -14,13 +14,103 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  signup(@Body() signupDto: SignupDto) {
-    return this.authService.signup(signupDto);
+  @ApiOperation({ 
+    summary: 'Register a new user',
+    description: 'Create a new user account with mobile number, password, and role'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'User registered successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        access_token: { type: 'string', description: 'JWT access token' },
+        refresh_token: { type: 'string', description: 'JWT refresh token' },
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'Mobile number already in use',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Validation failed',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'array', items: { type: 'string' } },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
+  async signup(
+    @Body() signupDto: SignupDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const tokens = await this.authService.signup(signupDto);
+
+    // Set access token cookie (15 minutes)
+    res.cookie('access_token', tokens.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/',
+    });
+
+    // Set refresh token cookie (7 days)
+    res.cookie('refresh_token', tokens.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    return {
+      message: 'User registered successfully',
+      access_token: tokens.access_token,
+    };
   }
 
   @Post('signin')
+  @ApiOperation({ 
+    summary: 'Sign in user',
+    description: 'Authenticate user with mobile number and password. Sets httpOnly cookies for tokens.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User signed in successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        access_token: { type: 'string', description: 'JWT access token (also set as httpOnly cookie)' },
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Invalid credentials',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
   async signin(
     @Body() signinDto: SigninDto,
     @Res({ passthrough: true }) res: Response,
@@ -52,8 +142,33 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
+  @ApiOperation({ 
+    summary: 'Refresh access token',
+    description: 'Generate new access and refresh tokens using existing refresh token from cookies. This endpoint is also automatically called by middleware when refresh token is present without access token.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Tokens refreshed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        access_token: { type: 'string', description: 'New JWT access token (also set as httpOnly cookie)' },
+      },
+    },
+  })
+  @ApiResponse({ 
+    status: 401, 
+    description: 'Refresh token not found or invalid',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -91,6 +206,20 @@ export class AuthController {
   }
 
   @Post('logout')
+  @ApiOperation({ 
+    summary: 'Logout user',
+    description: 'Clear authentication cookies and sign out the user'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User logged out successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
   async logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('access_token', {
       httpOnly: true,
