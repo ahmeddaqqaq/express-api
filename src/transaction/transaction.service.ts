@@ -437,7 +437,7 @@ export class TransactionService {
         images: true,
       },
       orderBy: {
-        createdAt: 'asc',
+        createdAt: 'desc',
       },
     });
   }
@@ -502,7 +502,6 @@ export class TransactionService {
     const updateData: any = {
       status: updateTransactionDto.status,
     };
-
 
     const OTPCode = this.generateRandomHex();
 
