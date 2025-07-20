@@ -17,6 +17,9 @@ export class TransactionResponse {
   status: TransactionStatus;
 
   @ApiProperty()
+  isPaid: boolean;
+
+  @ApiProperty()
   customerId: string;
 
   @ApiProperty()

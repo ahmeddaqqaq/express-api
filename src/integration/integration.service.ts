@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -193,5 +193,49 @@ export class IntegrationService {
     return posOrders.map((order) => ({
       data: order.data,
     }));
+  }
+
+  async markTransactionAsPaid(transactionId: string) {
+    // Find the transaction
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    // Check if transaction is in completed status
+    if (transaction.status !== 'completed') {
+      throw new BadRequestException('Transaction must be in completed status to mark as paid');
+    }
+
+    // Check if already paid
+    if (transaction.isPaid) {
+      throw new BadRequestException('Transaction is already marked as paid');
+    }
+
+    // Update transaction to mark as paid
+    const updatedTransaction = await this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: { isPaid: true },
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
+        addOns: true,
+        createdBy: true,
+      },
+    });
+
+    return {
+      message: 'Transaction marked as paid successfully',
+      transaction: updatedTransaction,
+    };
   }
 }

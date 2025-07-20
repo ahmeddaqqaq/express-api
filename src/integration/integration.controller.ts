@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Param, ParseUUIDPipe } from '@nestjs/common';
 import { IntegrationService } from './integration.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
@@ -41,5 +41,25 @@ export class IntegrationController {
     @Param('transactionId', ParseUUIDPipe) transactionId: string,
   ) {
     return this.integrationService.getPosOrderByTransactionId(transactionId);
+  }
+
+  @Post('mark-paid/:transactionId')
+  @ApiOperation({ summary: 'Mark transaction as paid' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction marked as paid successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Transaction must be in completed status to mark as paid',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Transaction not found',
+  })
+  async markTransactionAsPaid(
+    @Param('transactionId', ParseUUIDPipe) transactionId: string,
+  ) {
+    return this.integrationService.markTransactionAsPaid(transactionId);
   }
 }

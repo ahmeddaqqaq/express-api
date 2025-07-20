@@ -503,22 +503,6 @@ export class TransactionService {
       status: updateTransactionDto.status,
     };
 
-    if (updateTransactionDto.technicianIds) {
-      updateData.technicians = {
-        set: updateTransactionDto.technicianIds.map((id) => ({ id })),
-      };
-
-      // Always log technician assignments when technicians are assigned
-      // Use the new status if provided, otherwise use the current status
-      const assignmentPhase = updateTransactionDto.status || originalStatus;
-      for (const technicianId of updateTransactionDto.technicianIds) {
-        await this.auditLogService.assignTechnicianToPhase(
-          technicianId,
-          updateTransactionDto.id,
-          assignmentPhase,
-        );
-      }
-    }
 
     const OTPCode = this.generateRandomHex();
 
@@ -588,9 +572,7 @@ export class TransactionService {
       updateTransactionDto.status &&
       updateTransactionDto.status !== originalStatus
     ) {
-      const technicianId =
-        updateTransactionDto.updatedByTechnicianId ||
-        updateTransactionDto.technicianIds?.[0];
+      const technicianId = updateTransactionDto.updatedByTechnicianId;
 
       if (technicianId) {
         await this.auditLogService.logPhaseTransition(
