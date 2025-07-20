@@ -68,17 +68,40 @@ export class CustomerService {
           },
         },
         {
-          fName: {
-            contains: filterDto.search,
-            mode: 'insensitive',
-          },
-          lName: {
-            contains: filterDto.search,
-            mode: 'insensitive',
-          },
+          OR: [
+            {
+              fName: {
+                contains: filterDto.search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              lName: {
+                contains: filterDto.search,
+                mode: 'insensitive',
+              },
+            },
+          ],
         },
       ],
     };
+
+    if (filterDto.search) {
+      const searchTerm = filterDto.search.toLowerCase();
+      const fullNameCondition = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Customer" 
+        WHERE LOWER(CONCAT("fName", ' ', "lName")) LIKE ${`%${searchTerm}%`}
+      `;
+      
+      if (fullNameCondition.length > 0) {
+        const matchingIds = fullNameCondition.map((row) => row.id);
+        where.OR.push({
+          id: {
+            in: matchingIds,
+          },
+        });
+      }
+    }
 
     const total = await this.prisma.customer.count({ where });
 
