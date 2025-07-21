@@ -60,9 +60,9 @@ export class IntegrationService {
 
     const products = [];
 
-    // Add the service as a product using posServiceId
+    // Add the service as a product using car-type specific posServiceId
     products.push({
-      id: transaction.service.posServiceId,
+      id: servicePrice.posServiceId,
       note: null,
       count: 1,
       taxValue: 0,

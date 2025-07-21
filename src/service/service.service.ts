@@ -8,16 +8,16 @@ export class ServiceService {
   constructor(private prisma: PrismaService) {}
 
   async create(createServiceDto: CreateServiceDto) {
-    const { name, posServiceId, prices } = createServiceDto;
+    const { name, prices } = createServiceDto;
 
     const service = await this.prisma.service.create({
       data: {
         name,
-        posServiceId,
         prices: {
-          create: prices.map(({ carType, price }) => ({
+          create: prices.map(({ carType, price, posServiceId }) => ({
             carType,
             price,
+            posServiceId,
           })),
         },
       },
@@ -51,9 +51,10 @@ export class ServiceService {
         name,
         prices: {
           deleteMany: {},
-          create: prices.map(({ carType, price }) => ({
+          create: prices.map(({ carType, price, posServiceId }) => ({
             carType,
             price,
+            posServiceId,
           })),
         },
       },

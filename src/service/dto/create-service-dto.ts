@@ -18,16 +18,16 @@ class ServicePriceDto {
   @ApiProperty()
   @IsNumber()
   price: number;
+
+  @ApiProperty()
+  @IsNumber()
+  posServiceId: number;
 }
 
 export class CreateServiceDto {
   @ApiProperty()
   @IsString()
   name: string;
-
-  @ApiProperty()
-  @IsNumber()
-  posServiceId: number;
 
   @ApiProperty({ type: [ServicePriceDto] })
   @IsArray()
