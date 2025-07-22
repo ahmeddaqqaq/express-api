@@ -183,9 +183,7 @@ export class IntegrationService {
     const posOrders = await this.prisma.posOrder.findMany({
       where: {
         transaction: {
-          status: {
-            notIn: ['completed', 'cancelled'],
-          },
+          isPaid: false,
         },
       },
       orderBy: {
