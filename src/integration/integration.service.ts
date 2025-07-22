@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -100,7 +104,7 @@ export class IntegrationService {
       price: {
         priceMode: null,
         totalPrice: totalPrice,
-        servicefee: 0.25,
+        servicefee: 0,
         discountType: 'Discount_promo',
         orderPayment: 'Cash',
         deliveryPrice: 0,
@@ -114,7 +118,7 @@ export class IntegrationService {
       OrderHastag: null,
       orderNumber: orderNumber,
       orderSourceName: 'Radiant_App',
-      orderCompanyPhone: '0795998808',
+      orderCompanyPhone: transaction.customer.mobileNumber,
       orderCompanyCustomer: `${transaction.customer.fName} ${transaction.customer.lName}`,
       plateNumber: transaction.car.plateNumber,
     };
@@ -195,20 +199,25 @@ export class IntegrationService {
     }));
   }
 
-  async markTransactionAsPaid(transactionId: string) {
-    // Find the transaction
-    const transaction = await this.prisma.transaction.findUnique({
-      where: { id: transactionId },
+  async markTransactionAsPaid(orderId: number) {
+    // Find the POS order by order number in the data JSON field
+    const posOrder = await this.prisma.posOrder.findFirst({
+      where: {
+        data: {
+          path: ['orderNumber'],
+          equals: orderId,
+        },
+      },
+      include: {
+        transaction: true,
+      },
     });
 
-    if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+    if (!posOrder) {
+      throw new NotFoundException('Order not found');
     }
 
-    // Check if transaction is in completed status
-    if (transaction.status !== 'completed') {
-      throw new BadRequestException('Transaction must be in completed status to mark as paid');
-    }
+    const transaction = posOrder.transaction;
 
     // Check if already paid
     if (transaction.isPaid) {
@@ -217,7 +226,7 @@ export class IntegrationService {
 
     // Update transaction to mark as paid
     const updatedTransaction = await this.prisma.transaction.update({
-      where: { id: transactionId },
+      where: { id: transaction.id },
       data: { isPaid: true },
       include: {
         customer: true,
