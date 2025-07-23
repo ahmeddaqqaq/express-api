@@ -119,7 +119,9 @@ export class IntegrationService {
       orderNumber: orderNumber,
       orderSourceName: 'Radiant_App',
       orderCompanyPhone: transaction.customer.mobileNumber,
-      carName: `${transaction.car.brand.name} ${transaction.car.model.name}`,
+      carName: `${transaction.car.brand.name} ${transaction.car.model.name} (${
+        transaction.car.color ?? 'No Color'
+      })`,
       orderCompanyCustomer: `${transaction.customer.fName} ${transaction.customer.lName}`,
       plateNumber: transaction.car.plateNumber,
     };
