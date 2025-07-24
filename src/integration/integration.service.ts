@@ -70,9 +70,9 @@ export class IntegrationService {
       note: null,
       count: 1,
       taxValue: 0,
-      taxPercent: 8,
+      taxPercent: 16,
       discountValue: 0,
-      originalPrice: servicePrice.price,
+      originalPrice: servicePrice.price / 1.16,
       priceAfterTax: servicePrice.price,
       selleingPrice: servicePrice.price,
     });
@@ -84,9 +84,9 @@ export class IntegrationService {
         note: null,
         count: 1,
         taxValue: 0,
-        taxPercent: 8,
+        taxPercent: 16,
         discountValue: 0,
-        originalPrice: addOn.price,
+        originalPrice: addOn.price / 1.16,
         priceAfterTax: addOn.price,
         selleingPrice: addOn.price,
       });
