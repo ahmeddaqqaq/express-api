@@ -858,13 +858,17 @@ export class TransactionService {
 
   async assignTechnicianToPhase(
     transactionId: string,
-    technicianId: string,
+    technicianIds: string[],
     phase: 'stageOne' | 'stageTwo' | 'stageThree',
   ) {
     if (!['stageOne', 'stageTwo', 'stageThree'].includes(phase)) {
       throw new BadRequestException(
         'Invalid phase. Only stageOne, stageTwo, and stageThree are allowed for technician assignments.',
       );
+    }
+
+    if (!technicianIds || technicianIds.length === 0) {
+      throw new BadRequestException('At least one technician ID must be provided');
     }
 
     const transaction = await this.prisma.transaction.findUnique({
@@ -879,36 +883,44 @@ export class TransactionService {
       throw new NotFoundException('Transaction not found');
     }
 
-    const technician = await this.prisma.technician.findUnique({
-      where: { id: technicianId },
+    const technicians = await this.prisma.technician.findMany({
+      where: { id: { in: technicianIds } },
     });
 
-    if (!technician) {
-      throw new NotFoundException('Technician not found');
+    if (technicians.length !== technicianIds.length) {
+      throw new NotFoundException('One or more technicians not found');
     }
 
-    const existingAssignment =
-      await this.prisma.technicianAssignment.findUnique({
-        where: {
-          technicianId_transactionId_phase: {
-            technicianId,
-            transactionId,
-            phase: phase as any,
-          },
-        },
-      });
+    const existingAssignments = await this.prisma.technicianAssignment.findMany({
+      where: {
+        transactionId,
+        phase: phase as any,
+        technicianId: { in: technicianIds },
+      },
+    });
 
-    if (existingAssignment) {
+    if (existingAssignments.length > 0) {
+      const existingTechnicianIds = existingAssignments.map(a => a.technicianId);
       throw new BadRequestException(
-        `Technician is already assigned to ${phase} for this transaction`,
+        `One or more technicians are already assigned to ${phase} for this transaction: ${existingTechnicianIds.join(', ')}`,
       );
     }
 
-    return await this.prisma.technicianAssignment.create({
-      data: {
-        technicianId,
+    const assignmentData = technicianIds.map(technicianId => ({
+      technicianId,
+      transactionId,
+      phase: phase as any,
+    }));
+
+    await this.prisma.technicianAssignment.createMany({
+      data: assignmentData,
+    });
+
+    return await this.prisma.technicianAssignment.findMany({
+      where: {
         transactionId,
         phase: phase as any,
+        technicianId: { in: technicianIds },
       },
       include: {
         technician: true,

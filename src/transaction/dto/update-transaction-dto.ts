@@ -72,14 +72,16 @@ export class AssignTechnicianToPhaseDto {
   transactionId: string;
 
   @ApiProperty({
-    description: 'Technician ID to assign'
+    type: [String],
+    description: 'Array of technician IDs to assign'
   })
-  @IsUUID()
-  technicianId: string;
+  @IsArray()
+  @IsUUID('4', { each: true })
+  technicianIds: string[];
 
   @ApiProperty({
     enum: ['stageOne', 'stageTwo', 'stageThree'],
-    description: 'Phase to assign technician to'
+    description: 'Phase to assign technicians to'
   })
   @IsString()
   phase: 'stageOne' | 'stageTwo' | 'stageThree';

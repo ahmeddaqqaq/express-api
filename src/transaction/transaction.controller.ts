@@ -523,24 +523,27 @@ export class TransactionController {
   }
 
   @Post('assign-technician')
-  @ApiOperation({ summary: 'Assign technician to a specific phase of a transaction' })
+  @ApiOperation({ summary: 'Assign multiple technicians to a specific phase of a transaction' })
   @ApiResponse({
     status: 201,
-    description: 'Technician assigned successfully',
+    description: 'Technicians assigned successfully',
     schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        technicianId: { type: 'string' },
-        transactionId: { type: 'string' },
-        phase: { type: 'string', enum: ['stageOne', 'stageTwo', 'stageThree'] },
-        assignedAt: { type: 'string', format: 'date-time' },
-        technician: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            fName: { type: 'string' },
-            lName: { type: 'string' },
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          technicianId: { type: 'string' },
+          transactionId: { type: 'string' },
+          phase: { type: 'string', enum: ['stageOne', 'stageTwo', 'stageThree'] },
+          assignedAt: { type: 'string', format: 'date-time' },
+          technician: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              fName: { type: 'string' },
+              lName: { type: 'string' },
+            },
           },
         },
       },
@@ -548,14 +551,14 @@ export class TransactionController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid phase or technician already assigned',
+    description: 'Invalid phase, technicians already assigned, or no technician IDs provided',
   })
   async assignTechnicianToPhase(
     @Body() assignTechnicianDto: AssignTechnicianToPhaseDto,
   ) {
     return this.transactionService.assignTechnicianToPhase(
       assignTechnicianDto.transactionId,
-      assignTechnicianDto.technicianId,
+      assignTechnicianDto.technicianIds,
       assignTechnicianDto.phase,
     );
   }

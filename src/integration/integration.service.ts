@@ -97,7 +97,7 @@ export class IntegrationService {
       (sum, product) => sum + product.selleingPrice,
       0,
     );
-    const orderNumber = Math.floor(Math.random() * 1000000000);
+    const orderNumber = Math.floor(Date.now() / 1000);
 
     // Create the exact response format
     const responseData = {

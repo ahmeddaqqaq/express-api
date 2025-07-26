@@ -148,4 +148,36 @@ export class StatisticsController {
   async getServiceStageBottlenecks(@Query() filter: StatsFilterDto) {
     return await this.statisticsService.getServiceStageBottlenecks(filter);
   }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns supervisor add-on sales statistics',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          supervisorId: { type: 'string' },
+          supervisorName: { type: 'string' },
+          totalAddOnRevenue: { type: 'number' },
+          addOnCount: { type: 'number' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('supervisorAddOnSales')
+  async getSupervisorAddsOnSell(@Query() filter: StatsFilterDto) {
+    return await this.statisticsService.getSupervisorAddsOnSell(filter);
+  }
 }

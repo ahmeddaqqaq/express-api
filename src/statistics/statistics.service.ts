@@ -314,7 +314,9 @@ export class StatisticsService {
     return customersWithStats.slice(0, limit);
   }
 
-  async getPeakAnalysis(filter?: StatsFilterDto): Promise<PeakAnalysisResponse> {
+  async getPeakAnalysis(
+    filter?: StatsFilterDto,
+  ): Promise<PeakAnalysisResponse> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -337,9 +339,17 @@ export class StatisticsService {
     // Peak Hours Analysis
     const hourCounts = new Map<number, number>();
     const dayCounts = new Map<number, number>();
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayNames = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
 
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       const date = new Date(transaction.createdAt);
       const hour = date.getHours();
       const dayOfWeek = date.getDay();
@@ -355,7 +365,8 @@ export class StatisticsService {
       .map(([hour, count]) => ({
         hour,
         transactionCount: count,
-        percentage: totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
+        percentage:
+          totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
       }))
       .sort((a, b) => b.transactionCount - a.transactionCount);
 
@@ -364,7 +375,8 @@ export class StatisticsService {
         dayOfWeek,
         dayName: dayNames[dayOfWeek],
         transactionCount: count,
-        percentage: totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
+        percentage:
+          totalTransactions > 0 ? (count / totalTransactions) * 100 : 0,
       }))
       .sort((a, b) => b.transactionCount - a.transactionCount);
 
@@ -374,7 +386,9 @@ export class StatisticsService {
     };
   }
 
-  async getTechnicianUtilization(filter?: StatsFilterDto): Promise<TechnicianUtilizationResponse[]> {
+  async getTechnicianUtilization(
+    filter?: StatsFilterDto,
+  ): Promise<TechnicianUtilizationResponse[]> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -398,32 +412,46 @@ export class StatisticsService {
       },
     });
 
-    const utilizationData: TechnicianUtilizationResponse[] = technicians.map(technician => {
-      const totalTransactions = technician.transactions.length;
-      const completedTransactions = technician.transactions.filter(t => t.status === 'completed').length;
-      const inProgressTransactions = technician.transactions.filter(t => 
-        ['stageOne', 'stageTwo', 'stageThree'].includes(t.status)
-      ).length;
+    const utilizationData: TechnicianUtilizationResponse[] = technicians.map(
+      (technician) => {
+        const totalTransactions = technician.transactions.length;
+        const completedTransactions = technician.transactions.filter(
+          (t) => t.status === 'completed',
+        ).length;
+        const inProgressTransactions = technician.transactions.filter((t) =>
+          ['stageOne', 'stageTwo', 'stageThree'].includes(t.status),
+        ).length;
 
-      // Calculate utilization rate based on total transactions assigned
-      const utilizationRate = totalTransactions > 0 ? (totalTransactions / Math.max(totalTransactions, 1)) * 100 : 0;
-      const completionRate = totalTransactions > 0 ? (completedTransactions / totalTransactions) * 100 : 0;
+        // Calculate utilization rate based on total transactions assigned
+        const utilizationRate =
+          totalTransactions > 0
+            ? (totalTransactions / Math.max(totalTransactions, 1)) * 100
+            : 0;
+        const completionRate =
+          totalTransactions > 0
+            ? (completedTransactions / totalTransactions) * 100
+            : 0;
 
-      return {
-        technicianId: technician.id,
-        technicianName: `${technician.fName} ${technician.lName}`,
-        totalTransactions,
-        completedTransactions,
-        inProgressTransactions,
-        utilizationRate,
-        completionRate,
-      };
-    });
+        return {
+          technicianId: technician.id,
+          technicianName: `${technician.fName} ${technician.lName}`,
+          totalTransactions,
+          completedTransactions,
+          inProgressTransactions,
+          utilizationRate,
+          completionRate,
+        };
+      },
+    );
 
-    return utilizationData.sort((a, b) => b.utilizationRate - a.utilizationRate);
+    return utilizationData.sort(
+      (a, b) => b.utilizationRate - a.utilizationRate,
+    );
   }
 
-  async getServiceStageBottlenecks(filter?: StatsFilterDto): Promise<ServiceStageBottleneckResponse[]> {
+  async getServiceStageBottlenecks(
+    filter?: StatsFilterDto,
+  ): Promise<ServiceStageBottleneckResponse[]> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -458,7 +486,7 @@ export class StatisticsService {
       stageThree: { totalTime: 0, count: 0 },
     };
 
-    transactions.forEach(transaction => {
+    transactions.forEach((transaction) => {
       const createdTime = new Date(transaction.createdAt).getTime();
       const updatedTime = new Date(transaction.updatedAt).getTime();
       const timeInStage = (updatedTime - createdTime) / (1000 * 60 * 60); // Convert to hours
@@ -470,7 +498,9 @@ export class StatisticsService {
     });
 
     // Calculate bottleneck scores and averages
-    const bottleneckData: ServiceStageBottleneckResponse[] = Object.entries(stageStats).map(([stage, stats]) => {
+    const bottleneckData: ServiceStageBottleneckResponse[] = Object.entries(
+      stageStats,
+    ).map(([stage, stats]) => {
       const averageTime = stats.count > 0 ? stats.totalTime / stats.count : 0;
       const bottleneckScore = averageTime * stats.count; // Higher time and count = higher bottleneck
 
@@ -483,5 +513,73 @@ export class StatisticsService {
     });
 
     return bottleneckData.sort((a, b) => b.bottleneckScore - a.bottleneckScore);
+  }
+
+  async getSupervisorAddsOnSell(filter?: StatsFilterDto) {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: new Date(),
+        };
+
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        status: 'completed',
+        updatedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        addOns: true,
+        createdBy: true,
+      },
+    });
+
+    const supervisorAddOnSales = new Map<
+      string,
+      {
+        supervisorId: string;
+        supervisorName: string;
+        totalAddOnRevenue: number;
+        addOnCount: number;
+      }
+    >();
+
+    for (const transaction of transactions) {
+      if (
+        !transaction.createdBy ||
+        !transaction.addOns ||
+        transaction.addOns.length === 0
+      ) {
+        continue;
+      }
+
+      const supervisorKey = transaction.createdBy.id;
+      const supervisorName = `${transaction.createdBy.firstName} ${transaction.createdBy.lastName}`;
+
+      if (!supervisorAddOnSales.has(supervisorKey)) {
+        supervisorAddOnSales.set(supervisorKey, {
+          supervisorId: transaction.createdBy.id,
+          supervisorName,
+          totalAddOnRevenue: 0,
+          addOnCount: 0,
+        });
+      }
+
+      const supervisorEntry = supervisorAddOnSales.get(supervisorKey);
+      const addOnRevenue = transaction.addOns.reduce(
+        (sum, addOn) => sum + addOn.price,
+        0,
+      );
+
+      supervisorEntry.totalAddOnRevenue += addOnRevenue;
+      supervisorEntry.addOnCount += transaction.addOns.length;
+    }
+
+    return Array.from(supervisorAddOnSales.values()).sort(
+      (a, b) => b.totalAddOnRevenue - a.totalAddOnRevenue,
+    );
   }
 }
