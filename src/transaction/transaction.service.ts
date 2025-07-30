@@ -489,7 +489,7 @@ export class TransactionService {
     });
   }
 
-  async cancelTransaction(id: string) {
+  async cancelTransaction(id: string, notes?: string) {
     const transaction = await this.prisma.transaction.findUnique({
       where: { id },
       include: {
@@ -515,7 +515,10 @@ export class TransactionService {
 
     const updatedTransaction = await this.prisma.transaction.update({
       where: { id },
-      data: { status: 'cancelled' },
+      data: {
+        status: 'cancelled',
+        notes: notes || transaction.notes,
+      },
       include: {
         customer: true,
         car: {

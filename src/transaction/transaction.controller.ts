@@ -21,7 +21,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CreateTransactionDto } from './dto/transaction-dto';
-import { UpdateTransactionDto, EditScheduledTransactionDto } from './dto/update-transaction-dto';
+import { UpdateTransactionDto, EditScheduledTransactionDto, CancelTransactionDto } from './dto/update-transaction-dto';
 import { TransactionManyResponse, TransactionResponse } from './dto/response';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TransactionFilterDto } from './dto/filter.dto';
@@ -292,7 +292,7 @@ export class TransactionController {
   @Patch('cancel/:id')
   @ApiOperation({
     summary: 'Cancel a scheduled transaction',
-    description: 'Cancel a transaction that is currently in scheduled status'
+    description: 'Cancel a transaction that is currently in scheduled status with optional notes'
   })
   @ApiResponse({
     status: 200,
@@ -323,8 +323,11 @@ export class TransactionController {
       },
     },
   })
-  async cancelTransaction(@Param('id', ParseUUIDPipe) id: string) {
-    return await this.transactionService.cancelTransaction(id);
+  async cancelTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() cancelDto: CancelTransactionDto,
+  ) {
+    return await this.transactionService.cancelTransaction(id, cancelDto.notes);
   }
 
   @ApiOperation({ summary: 'Update transaction status and details' })

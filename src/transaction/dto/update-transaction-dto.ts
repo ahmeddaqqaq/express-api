@@ -64,6 +64,15 @@ export class EditScheduledTransactionDto {
   notes?: string;
 }
 
+export class CancelTransactionDto {
+  @ApiPropertyOptional({
+    description: 'Notes for cancellation reason',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
 export class AssignTechnicianToPhaseDto {
   @ApiProperty({
     description: 'Transaction ID'
