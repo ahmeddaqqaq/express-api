@@ -259,15 +259,72 @@ export class TransactionController {
   @Get('findCancelled')
   @ApiOperation({
     summary: 'Find cancelled transactions',
-    description: 'Get all transactions with cancelled status'
+    description: 'Get all cancelled transactions, optionally filtered by cancellation date'
+  })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Date filter (YYYY-MM-DD format) to filter by cancellation date',
+    example: '2024-12-31',
   })
   @ApiResponse({
     status: 200,
     description: 'Cancelled transactions retrieved successfully',
     type: [TransactionResponse],
   })
-  async findCancelled() {
-    return await this.transactionService.findCancelled();
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid date format',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
+  async findCancelled(@Query('date') date?: string) {
+    const filterDate = date ? new Date(date) : undefined;
+    return await this.transactionService.findCancelled(filterDate);
+  }
+
+  @Patch('cancel/:id')
+  @ApiOperation({
+    summary: 'Cancel a scheduled transaction',
+    description: 'Cancel a transaction that is currently in scheduled status'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction cancelled successfully',
+    type: TransactionResponse,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - transaction is not in scheduled status',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Transaction not found',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        error: { type: 'string' },
+        statusCode: { type: 'number' },
+      },
+    },
+  })
+  async cancelTransaction(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.transactionService.cancelTransaction(id);
   }
 
   @ApiOperation({ summary: 'Update transaction status and details' })

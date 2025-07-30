@@ -388,4 +388,117 @@ export class TechnicianService {
     
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
+
+  async autoEndOpenShifts() {
+    const currentTime = new Date();
+    console.log(`[${currentTime.toISOString()}] Auto-ending open shifts, breaks, and overtimes...`);
+
+    // Find all shifts that have started but not ended (open shifts)
+    const openShifts = await this.prisma.shift.findMany({
+      where: {
+        startTime: { not: null },
+        endTime: null,
+      },
+      include: {
+        technician: true,
+      },
+    });
+
+    // Find all active breaks (started but not ended)
+    const activeBreaks = await this.prisma.shift.findMany({
+      where: {
+        breakStart: { not: null },
+        breakEnd: null,
+      },
+      include: {
+        technician: true,
+      },
+    });
+
+    // Find all active overtimes (started but not ended)
+    const activeOvertimes = await this.prisma.shift.findMany({
+      where: {
+        overtimeStart: { not: null },
+        overtimeEnd: null,
+      },
+      include: {
+        technician: true,
+      },
+    });
+
+    let endedShifts = 0;
+    let endedBreaks = 0;
+    let endedOvertimes = 0;
+
+    // End all active breaks first
+    for (const shift of activeBreaks) {
+      try {
+        await this.prisma.shift.update({
+          where: { id: shift.id },
+          data: { breakEnd: currentTime },
+        });
+
+        await this.auditLogService.logShiftAction(
+          shift.technicianId,
+          AuditAction.BREAK_ENDED,
+        );
+
+        endedBreaks++;
+        console.log(`Auto-ended break for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+      } catch (error) {
+        console.error(`Failed to end break for shift ${shift.id}:`, error);
+      }
+    }
+
+    // End all active overtimes
+    for (const shift of activeOvertimes) {
+      try {
+        await this.prisma.shift.update({
+          where: { id: shift.id },
+          data: { overtimeEnd: currentTime },
+        });
+
+        await this.auditLogService.logShiftAction(
+          shift.technicianId,
+          AuditAction.OVERTIME_ENDED,
+        );
+
+        endedOvertimes++;
+        console.log(`Auto-ended overtime for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+      } catch (error) {
+        console.error(`Failed to end overtime for shift ${shift.id}:`, error);
+      }
+    }
+
+    // End all open shifts
+    for (const shift of openShifts) {
+      try {
+        await this.prisma.shift.update({
+          where: { id: shift.id },
+          data: { endTime: currentTime },
+        });
+
+        await this.auditLogService.logShiftAction(
+          shift.technicianId,
+          AuditAction.SHIFT_ENDED,
+        );
+
+        endedShifts++;
+        console.log(`Auto-ended shift for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+      } catch (error) {
+        console.error(`Failed to end shift ${shift.id}:`, error);
+      }
+    }
+
+    const summary = {
+      timestamp: currentTime.toISOString(),
+      endedShifts,
+      endedBreaks,
+      endedOvertimes,
+      totalActions: endedShifts + endedBreaks + endedOvertimes,
+    };
+
+    console.log(`Auto-end completed:`, summary);
+    return summary;
+  }
 }

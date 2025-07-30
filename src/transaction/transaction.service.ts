@@ -442,20 +442,101 @@ export class TransactionService {
     });
   }
 
-  async findCancelled() {
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'cancelled',
-      },
+  async findCancelled(date?: Date) {
+    const where: Prisma.TransactionWhereInput = {
+      status: 'cancelled',
+    };
+
+    if (date) {
+      // Convert to UTC+3 timezone aware boundaries
+      const startOfDay = this.getStartOfDayUTC3(date);
+      const endOfDay = this.getEndOfDayUTC3(date);
+
+      where.OR = [
+        {
+          updatedAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        {
+          createdAt: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      ];
+    }
+
+    return this.prisma.transaction.findMany({
+      where,
       include: {
         car: { include: { brand: true, model: true } },
         customer: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
         service: true,
         addOns: true,
+        createdBy: true,
+        images: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+  }
+
+  async cancelTransaction(id: string) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
       },
     });
 
-    return transactions;
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    if (transaction.status !== 'scheduled') {
+      throw new BadRequestException(
+        'Only scheduled transactions can be cancelled',
+      );
+    }
+
+    const updatedTransaction = await this.prisma.transaction.update({
+      where: { id },
+      data: { status: 'cancelled' },
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
+        addOns: true,
+        assignments: {
+          include: {
+            technician: true,
+          },
+        },
+        createdBy: true,
+        images: true,
+      },
+    });
+
+    return updatedTransaction;
   }
 
   async update(updateTransactionDto: UpdateTransactionDto) {
@@ -868,7 +949,9 @@ export class TransactionService {
     }
 
     if (!technicianIds || technicianIds.length === 0) {
-      throw new BadRequestException('At least one technician ID must be provided');
+      throw new BadRequestException(
+        'At least one technician ID must be provided',
+      );
     }
 
     const transaction = await this.prisma.transaction.findUnique({
@@ -891,22 +974,28 @@ export class TransactionService {
       throw new NotFoundException('One or more technicians not found');
     }
 
-    const existingAssignments = await this.prisma.technicianAssignment.findMany({
-      where: {
-        transactionId,
-        phase: phase as any,
-        technicianId: { in: technicianIds },
+    const existingAssignments = await this.prisma.technicianAssignment.findMany(
+      {
+        where: {
+          transactionId,
+          phase: phase as any,
+          technicianId: { in: technicianIds },
+        },
       },
-    });
+    );
 
     if (existingAssignments.length > 0) {
-      const existingTechnicianIds = existingAssignments.map(a => a.technicianId);
+      const existingTechnicianIds = existingAssignments.map(
+        (a) => a.technicianId,
+      );
       throw new BadRequestException(
-        `One or more technicians are already assigned to ${phase} for this transaction: ${existingTechnicianIds.join(', ')}`,
+        `One or more technicians are already assigned to ${phase} for this transaction: ${existingTechnicianIds.join(
+          ', ',
+        )}`,
       );
     }
 
-    const assignmentData = technicianIds.map(technicianId => ({
+    const assignmentData = technicianIds.map((technicianId) => ({
       technicianId,
       transactionId,
       phase: phase as any,

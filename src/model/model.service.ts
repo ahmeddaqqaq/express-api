@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateModelDto } from './dto/create-model-dto';
 
@@ -48,6 +48,16 @@ export class ModelService {
   }
 
   async delete(id: string) {
+    const carsUsingModel = await this.prisma.car.count({
+      where: { modelId: id },
+    });
+
+    if (carsUsingModel > 0) {
+      throw new BadRequestException(
+        `Cannot delete model. It is currently used by ${carsUsingModel} car(s).`
+      );
+    }
+
     await this.prisma.model.delete({
       where: { id },
     });
