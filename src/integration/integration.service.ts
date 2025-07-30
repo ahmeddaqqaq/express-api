@@ -9,6 +9,18 @@ import { Prisma, TransactionStatus } from '@prisma/client';
 @Injectable()
 export class IntegrationService {
   constructor(private readonly prisma: PrismaService) {}
+  lastValue = 0;
+  uniqueInt32() {
+    const base = Math.floor((Date.now() % 1_000_000_000) / 10);
+    const unique = base + (this.lastValue++ % 100);
+
+    if (unique > 2_147_483_647) {
+      this.lastValue = 0;
+      return this.uniqueInt32();
+    }
+
+    return unique;
+  }
 
   async createOrderFromTransaction(transactionId: string) {
     // Check if POS order already exists for this transaction
@@ -98,7 +110,8 @@ export class IntegrationService {
       (sum, product) => sum + product.selleingPrice,
       0,
     );
-    const orderNumber = Math.floor(Date.now() / 1000);
+
+    const orderNumber = this.uniqueInt32();
 
     // Create the exact response format
     const responseData = {
@@ -164,7 +177,6 @@ export class IntegrationService {
     // Find the POS order by order number in the data JSON field
     const posOrder = await this.prisma.posOrder.findFirst({
       where: {
-        transaction: { isPaid: false },
         data: {
           path: ['orderNumber'],
           equals: orderId,
