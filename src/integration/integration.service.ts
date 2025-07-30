@@ -179,7 +179,8 @@ export class IntegrationService {
     }
 
     const transaction = posOrder.transaction;
-
+    console.log('Transaction:', transaction);
+    console.log('posOrder:', posOrder);
     // Check if already paid
     if (transaction.isPaid) {
       throw new BadRequestException('Transaction is already marked as paid');
