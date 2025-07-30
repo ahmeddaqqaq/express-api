@@ -164,6 +164,7 @@ export class IntegrationService {
     // Find the POS order by order number in the data JSON field
     const posOrder = await this.prisma.posOrder.findFirst({
       where: {
+        transaction: { isPaid: false },
         data: {
           path: ['orderNumber'],
           equals: orderId,
