@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, TransactionStatus } from '@prisma/client';
 
 @Injectable()
 export class IntegrationService {
@@ -24,7 +25,7 @@ export class IntegrationService {
       where: {
         id: transactionId,
         status: {
-          notIn: ['completed', 'cancelled'],
+          notIn: ['cancelled'],
         },
       },
       include: {
@@ -137,56 +138,15 @@ export class IntegrationService {
     return posOrder;
   }
 
-  async getPosOrderByTransactionId(transactionId: string) {
-    return this.prisma.posOrder.findUnique({
-      where: { transactionId },
-      include: {
-        transaction: {
-          include: {
-            customer: true,
-            car: {
-              include: {
-                brand: true,
-                model: true,
-              },
-            },
-            service: true,
-            addOns: true,
-          },
-        },
-      },
-    });
-  }
-
-  async getAllPosOrders() {
-    return this.prisma.posOrder.findMany({
-      include: {
-        transaction: {
-          include: {
-            customer: true,
-            car: {
-              include: {
-                brand: true,
-                model: true,
-              },
-            },
-            service: true,
-            addOns: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
-
   async findMany() {
     // Get all POS orders for non-completed and non-cancelled transactions
     const posOrders = await this.prisma.posOrder.findMany({
       where: {
         transaction: {
           isPaid: false,
+          status: {
+            notIn: [TransactionStatus.cancelled as TransactionStatus],
+          },
         },
       },
       orderBy: {

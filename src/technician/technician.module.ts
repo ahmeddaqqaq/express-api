@@ -8,5 +8,6 @@ import { AuditLogModule } from 'src/audit-log/audit-log.module';
   imports: [AuditLogModule],
   controllers: [TechnicianController],
   providers: [TechnicianService],
+  exports: [TechnicianService],
 })
 export class TechnicianModule {}
