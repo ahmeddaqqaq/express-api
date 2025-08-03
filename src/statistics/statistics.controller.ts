@@ -10,6 +10,7 @@ import {
   TechnicianUtilizationResponse,
   ServiceStageBottleneckResponse,
 } from './models/operational-insights.response';
+import { DailyReportResponseDto } from './models/daily-report.dto';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -179,5 +180,33 @@ export class StatisticsController {
   @Get('supervisorAddOnSales')
   async getSupervisorAddsOnSell(@Query() filter: StatsFilterDto) {
     return await this.statisticsService.getSupervisorAddsOnSell(filter);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns comprehensive daily report with technician shifts, cash summary, and supervisor sales',
+    type: DailyReportResponseDto,
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    type: String,
+    description: 'Date for the daily report in YYYY-MM-DD format',
+    example: '2023-12-01',
+  })
+  @Get('dailyReport')
+  async getDailyReport(@Query('date') date: string) {
+    return await this.statisticsService.getDailyReport(date);
   }
 }

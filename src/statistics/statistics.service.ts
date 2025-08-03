@@ -14,10 +14,35 @@ import {
   ServiceStageBottleneckResponse,
   PeakAnalysisResponse,
 } from './models/operational-insights.response';
+import {
+  DailyReportResponseDto,
+  TechnicianShiftReport,
+  CashSummary,
+  SupervisorSalesReport,
+} from './models/daily-report.dto';
 
 @Injectable()
 export class StatisticsService {
   constructor(private prisma: PrismaService) {}
+
+  private getStartOfDayUTC3(date: Date): Date {
+    // Create start of day at 1 AM in UTC+3 timezone
+    const startOfDay = new Date(date);
+    startOfDay.setHours(1, 0, 0, 0);
+    // Subtract 3 hours to convert UTC+3 to UTC
+    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
+    return startOfDay;
+  }
+
+  private getEndOfDayUTC3(date: Date): Date {
+    // Create end of day at 12:59:59 AM of the NEXT day (before 1 AM start) in UTC+3 timezone
+    const endOfDay = new Date(date);
+    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
+    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
+    // Subtract 3 hours to convert UTC+3 to UTC
+    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
+    return endOfDay;
+  }
 
   private getDateRange(filter: StatsFilterDto): { start: Date; end: Date } {
     const now = new Date();
@@ -581,5 +606,171 @@ export class StatisticsService {
     return Array.from(supervisorAddOnSales.values()).sort(
       (a, b) => b.totalAddOnRevenue - a.totalAddOnRevenue,
     );
+  }
+
+  async getDailyReport(date: string): Promise<DailyReportResponseDto> {
+    const reportDate = new Date(date);
+    const startOfDay = this.getStartOfDayUTC3(reportDate);
+    const endOfDay = this.getEndOfDayUTC3(reportDate);
+
+    // Get all technicians with their shifts for the specific date
+    const technicians = await this.prisma.technician.findMany({
+      include: {
+        shifts: {
+          where: {
+            date: startOfDay, // Shifts are stored with exact startOfDay date
+          },
+        },
+      },
+    });
+
+    // Get technician shift reports
+    const technicianShifts: TechnicianShiftReport[] = await Promise.all(
+      technicians.map(async (technician) => {
+        const shift = technician.shifts[0];
+        
+        if (!shift) {
+          return {
+            technicianId: technician.id,
+            technicianName: `${technician.fName} ${technician.lName}`,
+            totalShiftTime: '00:00:00',
+            totalBreakTime: '00:00:00',
+            totalOvertimeTime: '00:00:00',
+            totalWorkingTime: '00:00:00',
+            worked: false,
+          };
+        }
+
+        const shiftTime = this.calculateDuration(shift.startTime, shift.endTime);
+        const breakTime = this.calculateDuration(shift.breakStart, shift.breakEnd);
+        const overtimeTime = this.calculateDuration(shift.overtimeStart, shift.overtimeEnd);
+        
+        const totalMinutes = Math.max(0, shiftTime.minutes + overtimeTime.minutes - breakTime.minutes);
+
+        return {
+          technicianId: technician.id,
+          technicianName: `${technician.fName} ${technician.lName}`,
+          totalShiftTime: this.formatDuration(shiftTime.minutes),
+          totalBreakTime: this.formatDuration(breakTime.minutes),
+          totalOvertimeTime: this.formatDuration(overtimeTime.minutes),
+          totalWorkingTime: this.formatDuration(totalMinutes),
+          worked: true,
+        };
+      }),
+    );
+
+    // Get completed transactions for cash calculations
+    const transactions = await this.prisma.transaction.findMany({
+      where: {
+        status: 'completed',
+        OR: [
+          {
+            updatedAt: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          {
+            createdAt: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        ],
+      },
+      include: {
+        service: true,
+        addOns: true,
+        invoice: true,
+        car: {
+          include: {
+            model: true,
+          },
+        },
+        createdBy: true,
+      },
+    });
+
+    // Calculate cash summary
+    let servicesCash = 0;
+    let addOnsCash = 0;
+    let totalCash = 0;
+
+    for (const transaction of transactions) {
+      if (transaction.invoice) {
+        totalCash += transaction.invoice.totalAmount;
+        
+        // Calculate service cash (total - add-ons)
+        const addOnAmount = transaction.addOns?.reduce((sum, addOn) => sum + addOn.price, 0) || 0;
+        const serviceAmount = transaction.invoice.totalAmount - addOnAmount;
+        
+        servicesCash += serviceAmount;
+        addOnsCash += addOnAmount;
+      }
+    }
+
+    const cashSummary: CashSummary = {
+      servicesCash,
+      addOnsCash,
+      totalCash,
+      transactionCount: transactions.length,
+    };
+
+    // Get supervisor sales for the day
+    const supervisorSalesMap = new Map<string, SupervisorSalesReport>();
+
+    for (const transaction of transactions) {
+      if (transaction.createdBy && transaction.addOns && transaction.addOns.length > 0) {
+        const supervisorKey = transaction.createdBy.id;
+        const supervisorName = `${transaction.createdBy.firstName} ${transaction.createdBy.lastName}`;
+
+        if (!supervisorSalesMap.has(supervisorKey)) {
+          supervisorSalesMap.set(supervisorKey, {
+            supervisorId: transaction.createdBy.id,
+            supervisorName,
+            totalAddOnRevenue: 0,
+            addOnCount: 0,
+          });
+        }
+
+        const supervisorEntry = supervisorSalesMap.get(supervisorKey);
+        const addOnRevenue = transaction.addOns.reduce((sum, addOn) => sum + addOn.price, 0);
+
+        supervisorEntry.totalAddOnRevenue += addOnRevenue;
+        supervisorEntry.addOnCount += transaction.addOns.length;
+      }
+    }
+
+    const supervisorSales = Array.from(supervisorSalesMap.values()).sort(
+      (a, b) => b.totalAddOnRevenue - a.totalAddOnRevenue,
+    );
+
+    return {
+      date,
+      technicianShifts,
+      cashSummary,
+      supervisorSales,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  private calculateDuration(startTime: Date | null, endTime: Date | null): { minutes: number } {
+    if (!startTime) return { minutes: 0 };
+
+    const end = endTime || new Date();
+    const diffMs = end.getTime() - startTime.getTime();
+    const minutes = Math.floor(diffMs / (1000 * 60));
+
+    return { minutes: Math.max(0, minutes) };
+  }
+
+  private formatDuration(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const secs = 0;
+
+    return `${hours.toString().padStart(2, '0')}:${mins
+      .toString()
+      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 }

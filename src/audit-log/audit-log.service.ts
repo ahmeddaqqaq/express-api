@@ -8,12 +8,12 @@ export class AuditLogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async log(
-    technicianId: string, 
-    action: AuditAction, 
-    transactionId?: string, 
+    technicianId: string,
+    action: AuditAction,
+    transactionId?: string,
     phase?: TransactionStatus,
     metadata?: any,
-    description?: string
+    description?: string,
   ) {
     return this.prisma.auditLog.create({
       data: {
@@ -32,29 +32,36 @@ export class AuditLogService {
   }
 
   async logTransactionAction(
-    technicianId: string, 
-    action: AuditAction, 
-    transactionId: string, 
+    technicianId: string,
+    action: AuditAction,
+    transactionId: string,
     phase?: TransactionStatus,
     metadata?: any,
-    description?: string
+    description?: string,
   ) {
-    return this.log(technicianId, action, transactionId, phase, metadata, description);
+    return this.log(
+      technicianId,
+      action,
+      transactionId,
+      phase,
+      metadata,
+      description,
+    );
   }
 
   async logPhaseTransition(
-    technicianId: string, 
-    transactionId: string, 
-    fromPhase: TransactionStatus, 
-    toPhase: TransactionStatus
+    technicianId: string,
+    transactionId: string,
+    fromPhase: TransactionStatus,
+    toPhase: TransactionStatus,
   ) {
     return this.log(
-      technicianId, 
-      AuditAction.PHASE_TRANSITION, 
-      transactionId, 
+      technicianId,
+      AuditAction.PHASE_TRANSITION,
+      transactionId,
       toPhase,
       { fromPhase, toPhase },
-      `Transaction phase changed from ${fromPhase} to ${toPhase}`
+      `Transaction phase changed from ${fromPhase} to ${toPhase}`,
     );
   }
 
@@ -105,10 +112,10 @@ export class AuditLogService {
 
   async findByTechnician(technicianId: string, paginationDto?: PaginationDto) {
     const where = { technicianId };
-    
+
     if (paginationDto) {
       const count = await this.prisma.auditLog.count({ where });
-      
+
       const auditLogs = await this.prisma.auditLog.findMany({
         where,
         skip: paginationDto.skip,
@@ -229,10 +236,13 @@ export class AuditLogService {
 
   async getDailyWorkingHours(technicianId: string, date: string) {
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
+    startOfDay.setHours(1, 0, 0, 0);
+    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000); // Convert UTC+3 to UTC
+
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
+    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
+    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000); // Convert UTC+3 to UTC
 
     const logs = await this.prisma.auditLog.findMany({
       where: {
@@ -305,7 +315,7 @@ export class AuditLogService {
       breakTime: msToTimeString(totalBreakMs),
       overtimeTime: msToTimeString(totalOvertimeMs),
       totalWorkingTime: msToTimeString(totalShiftMs + totalOvertimeMs),
-      logs: logs.map(log => ({
+      logs: logs.map((log) => ({
         action: log.action,
         timestamp: log.timestamp,
       })),
@@ -314,9 +324,9 @@ export class AuditLogService {
 
   // Technician Assignment Methods
   async assignTechnicianToPhase(
-    technicianId: string, 
-    transactionId: string, 
-    phase: TransactionStatus
+    technicianId: string,
+    transactionId: string,
+    phase: TransactionStatus,
   ) {
     // Create or update assignment
     const assignment = await this.prisma.technicianAssignment.upsert({
@@ -346,16 +356,16 @@ export class AuditLogService {
       transactionId,
       phase,
       { assignmentId: assignment.id },
-      `Technician assigned to ${phase} phase`
+      `Technician assigned to ${phase} phase`,
     );
 
     return assignment;
   }
 
   async startWorkOnTransaction(
-    technicianId: string, 
-    transactionId: string, 
-    phase: TransactionStatus
+    technicianId: string,
+    transactionId: string,
+    phase: TransactionStatus,
   ) {
     // Update assignment with start time
     const assignment = await this.prisma.technicianAssignment.updateMany({
@@ -377,16 +387,16 @@ export class AuditLogService {
       transactionId,
       phase,
       {},
-      `Started working on ${phase} phase`
+      `Started working on ${phase} phase`,
     );
 
     return assignment;
   }
 
   async completeWorkOnTransaction(
-    technicianId: string, 
-    transactionId: string, 
-    phase: TransactionStatus
+    technicianId: string,
+    transactionId: string,
+    phase: TransactionStatus,
   ) {
     // Update assignment with completion time
     const assignment = await this.prisma.technicianAssignment.updateMany({
@@ -409,7 +419,7 @@ export class AuditLogService {
       transactionId,
       phase,
       {},
-      `Completed work on ${phase} phase`
+      `Completed work on ${phase} phase`,
     );
 
     return assignment;

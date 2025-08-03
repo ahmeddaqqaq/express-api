@@ -322,8 +322,10 @@ export class TechnicianService {
       shift.overtimeEnd,
     );
 
-    const totalMinutes = Math.max(0,
-      shiftTime.minutes + overtimeTime.minutes - breakTime.minutes);
+    const totalMinutes = Math.max(
+      0,
+      shiftTime.minutes + overtimeTime.minutes - breakTime.minutes,
+    );
     const totalWorkingTime = this.formatDuration(totalMinutes);
 
     return {
@@ -429,7 +431,6 @@ export class TechnicianService {
 
     return activeShifts.map((shift) => shift.technician);
   }
-
 
   async autoEndOpenShifts() {
     const currentTime = new Date();
@@ -553,20 +554,21 @@ export class TechnicianService {
   }
 
   private getStartOfDayUTC3(date: Date): Date {
-    // Create start of day in UTC+3 timezone
+    // Create start of day at 1 AM in UTC+3 timezone
     const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    // Subtract 4 hours to convert UTC+3 to UTC (matching transaction service)
-    startOfDay.setTime(startOfDay.getTime() - 4 * 60 * 60 * 1000);
+    startOfDay.setHours(1, 0, 0, 0);
+    // Subtract 3 hours to convert UTC+3 to UTC
+    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
     return startOfDay;
   }
 
   private getEndOfDayUTC3(date: Date): Date {
-    // Create end of day in UTC+3 timezone
+    // Create end of day at 12:59:59 AM of the NEXT day (before 1 AM start) in UTC+3 timezone
     const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-    // Subtract 4 hours to convert UTC+3 to UTC (matching transaction service)
-    endOfDay.setTime(endOfDay.getTime() - 4 * 60 * 60 * 1000);
+    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
+    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
+    // Subtract 3 hours to convert UTC+3 to UTC
+    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
     return endOfDay;
   }
 }
