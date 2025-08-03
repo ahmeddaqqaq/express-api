@@ -388,4 +388,5 @@ export class TechnicianController {
   ) {
     return this.auditLogService.findByTechnician(id, paginationDto);
   }
+
 }

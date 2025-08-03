@@ -322,8 +322,8 @@ export class TechnicianService {
       shift.overtimeEnd,
     );
 
-    const totalMinutes =
-      shiftTime.minutes + overtimeTime.minutes - breakTime.minutes;
+    const totalMinutes = Math.max(0,
+      shiftTime.minutes + overtimeTime.minutes - breakTime.minutes);
     const totalWorkingTime = this.formatDuration(totalMinutes);
 
     return {
@@ -406,11 +406,16 @@ export class TechnicianService {
   }
 
   async findActiveShiftTechnicians() {
-    const today = this.getStartOfDayUTC3(new Date());
+    const now = new Date();
+    const today = this.getStartOfDayUTC3(now);
+    const endOfDay = this.getEndOfDayUTC3(now);
 
     const activeShifts = await this.prisma.shift.findMany({
       where: {
-        date: today,
+        date: {
+          gte: today,
+          lte: endOfDay,
+        },
         startTime: { not: null },
         OR: [
           { endTime: null }, // Shift hasn't ended
@@ -424,6 +429,7 @@ export class TechnicianService {
 
     return activeShifts.map((shift) => shift.technician);
   }
+
 
   async autoEndOpenShifts() {
     const currentTime = new Date();
@@ -550,8 +556,17 @@ export class TechnicianService {
     // Create start of day in UTC+3 timezone
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    // Subtract 3 hours to convert UTC+3 to UTC
+    // Subtract 4 hours to convert UTC+3 to UTC (matching transaction service)
     startOfDay.setTime(startOfDay.getTime() - 4 * 60 * 60 * 1000);
     return startOfDay;
+  }
+
+  private getEndOfDayUTC3(date: Date): Date {
+    // Create end of day in UTC+3 timezone
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    // Subtract 4 hours to convert UTC+3 to UTC (matching transaction service)
+    endOfDay.setTime(endOfDay.getTime() - 4 * 60 * 60 * 1000);
+    return endOfDay;
   }
 }
