@@ -12,6 +12,7 @@ import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/customer-create.dto';
 import { FindOneCustomerDto } from './dto/find-one-dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { ToggleBlacklistDto } from './dto/toggle-blacklist.dto';
 import { CustomerResponse, CustomersManyResponse } from './responses';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { CustomerFilterDto } from './dto/filter-dto';
@@ -85,5 +86,21 @@ export class CustomerController {
   @Patch('update')
   async update(@Body() updateCustomerDto: UpdateCustomerDto) {
     return await this.customerService.update(updateCustomerDto);
+  }
+
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Patch('toggle-blacklist')
+  async toggleBlacklist(@Body() toggleBlacklistDto: ToggleBlacklistDto) {
+    return await this.customerService.toggleBlacklist(toggleBlacklistDto.id);
   }
 }

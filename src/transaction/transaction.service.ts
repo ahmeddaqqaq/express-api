@@ -36,7 +36,8 @@ export class TransactionService {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     // Subtract 3 hours to convert UTC+3 to UTC
-    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
+    startOfDay.setTime(startOfDay.getTime());
+    startOfDay.setTime(startOfDay.getTime() - 4 * 60 * 60 * 1000);
     return startOfDay;
   }
 
@@ -70,7 +71,7 @@ export class TransactionService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     // Subtract 3 hours to convert UTC+3 to UTC
-    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
+    endOfDay.setTime(endOfDay.getTime() - 4 * 60 * 60 * 1000);
     return endOfDay;
   }
 

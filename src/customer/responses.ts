@@ -23,6 +23,9 @@ export class CustomerResponse {
   @ApiProperty()
   isActive: boolean;
 
+  @ApiProperty()
+  isBlacklisted: boolean;
+
   @ApiProperty({ type: Date })
   createdAt: Date;
 

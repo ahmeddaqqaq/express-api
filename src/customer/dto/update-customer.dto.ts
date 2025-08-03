@@ -56,4 +56,13 @@ export class UpdateCustomerDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Whether the customer is blacklisted',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBlacklisted?: boolean;
 }

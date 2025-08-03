@@ -87,6 +87,31 @@ export class TechnicianController {
     });
   }
 
+  @Get('active-shifts')
+  @ApiOperation({
+    summary: 'Get technicians with active shifts',
+    description: 'Get all technicians who have active shifts or overtime for today (for ticket assignment)'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Active shift technicians retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          fName: { type: 'string' },
+          lName: { type: 'string' },
+          status: { type: 'string' },
+        }
+      }
+    }
+  })
+  async getActiveShiftTechnicians() {
+    return this.technicianService.findActiveShiftTechnicians();
+  }
+
   // --- SHIFT CONTROLS ---
 
   @Post(':id/start-shift')

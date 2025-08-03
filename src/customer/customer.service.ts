@@ -156,8 +156,27 @@ export class CustomerService {
         fName: updateCustomerDto.fName,
         lName: updateCustomerDto.lName,
         isActive: updateCustomerDto.isActive,
+        isBlacklisted: updateCustomerDto.isBlacklisted,
       },
     });
+  }
+
+  async toggleBlacklist(id: string) {
+    const customer = await this.prisma.customer.findUnique({ where: { id } });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const updatedCustomer = await this.prisma.customer.update({
+      where: { id },
+      data: {
+        isBlacklisted: !customer.isBlacklisted,
+      },
+      include: { cars: { include: { brand: true, model: true } } },
+    });
+
+    return updatedCustomer;
   }
 
   async delete(id: string) {

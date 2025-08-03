@@ -81,8 +81,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -123,8 +122,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -156,8 +154,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -190,8 +187,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -222,7 +218,7 @@ export class TechnicianService {
   async update(id: string, updateTechnicianDto: CreateTechnicianDto) {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
-    
+
     return this.prisma.technician.update({
       where: { id },
       data: updateTechnicianDto,
@@ -233,8 +229,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -267,8 +262,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = this.getStartOfDayUTC3(new Date());
 
     const existingShift = await this.prisma.shift.findUnique({
       where: {
@@ -300,8 +294,7 @@ export class TechnicianService {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
 
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
+    const targetDate = this.getStartOfDayUTC3(new Date(date));
 
     const shift = await this.prisma.shift.findUnique({
       where: {
@@ -324,9 +317,13 @@ export class TechnicianService {
 
     const shiftTime = this.calculateDuration(shift.startTime, shift.endTime);
     const breakTime = this.calculateDuration(shift.breakStart, shift.breakEnd);
-    const overtimeTime = this.calculateDuration(shift.overtimeStart, shift.overtimeEnd);
-    
-    const totalMinutes = shiftTime.minutes + overtimeTime.minutes - breakTime.minutes;
+    const overtimeTime = this.calculateDuration(
+      shift.overtimeStart,
+      shift.overtimeEnd,
+    );
+
+    const totalMinutes =
+      shiftTime.minutes + overtimeTime.minutes - breakTime.minutes;
     const totalWorkingTime = this.formatDuration(totalMinutes);
 
     return {
@@ -341,43 +338,60 @@ export class TechnicianService {
   async delete(id: string) {
     const tech = await this.prisma.technician.findUnique({ where: { id } });
     if (!tech) throw new Error('Technician not found.');
-    
+
     return this.prisma.technician.delete({ where: { id } });
   }
 
   private async getShiftDurations(technicianId: string) {
-    const shifts = await this.prisma.shift.findMany({
-      where: { technicianId },
+    const today = this.getStartOfDayUTC3(new Date());
+
+    const todayShift = await this.prisma.shift.findUnique({
+      where: {
+        technicianId_date: {
+          technicianId: technicianId,
+          date: today,
+        },
+      },
     });
 
-    let totalShiftMinutes = 0;
-    let totalBreakMinutes = 0;
-    let totalOvertimeMinutes = 0;
-
-    for (const shift of shifts) {
-      const shiftDuration = this.calculateDuration(shift.startTime, shift.endTime);
-      const breakDuration = this.calculateDuration(shift.breakStart, shift.breakEnd);
-      const overtimeDuration = this.calculateDuration(shift.overtimeStart, shift.overtimeEnd);
-
-      totalShiftMinutes += shiftDuration.minutes;
-      totalBreakMinutes += breakDuration.minutes;
-      totalOvertimeMinutes += overtimeDuration.minutes;
+    if (!todayShift) {
+      return {
+        totalShiftTime: '00:00:00',
+        totalBreakTime: '00:00:00',
+        totalOvertimeTime: '00:00:00',
+      };
     }
 
+    const shiftDuration = this.calculateDuration(
+      todayShift.startTime,
+      todayShift.endTime,
+    );
+    const breakDuration = this.calculateDuration(
+      todayShift.breakStart,
+      todayShift.breakEnd,
+    );
+    const overtimeDuration = this.calculateDuration(
+      todayShift.overtimeStart,
+      todayShift.overtimeEnd,
+    );
+
     return {
-      totalShiftTime: this.formatDuration(totalShiftMinutes),
-      totalBreakTime: this.formatDuration(totalBreakMinutes),
-      totalOvertimeTime: this.formatDuration(totalOvertimeMinutes),
+      totalShiftTime: this.formatDuration(shiftDuration.minutes),
+      totalBreakTime: this.formatDuration(breakDuration.minutes),
+      totalOvertimeTime: this.formatDuration(overtimeDuration.minutes),
     };
   }
 
-  private calculateDuration(startTime: Date | null, endTime: Date | null): { minutes: number } {
+  private calculateDuration(
+    startTime: Date | null,
+    endTime: Date | null,
+  ): { minutes: number } {
     if (!startTime) return { minutes: 0 };
-    
+
     const end = endTime || new Date();
     const diffMs = end.getTime() - startTime.getTime();
     const minutes = Math.floor(diffMs / (1000 * 60));
-    
+
     return { minutes: Math.max(0, minutes) };
   }
 
@@ -385,13 +399,37 @@ export class TechnicianService {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     const secs = 0;
-    
-    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+    return `${hours.toString().padStart(2, '0')}:${mins
+      .toString()
+      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  async findActiveShiftTechnicians() {
+    const today = this.getStartOfDayUTC3(new Date());
+
+    const activeShifts = await this.prisma.shift.findMany({
+      where: {
+        date: today,
+        startTime: { not: null },
+        OR: [
+          { endTime: null }, // Shift hasn't ended
+          { overtimeStart: { not: null }, overtimeEnd: null }, // Overtime is active
+        ],
+      },
+      include: {
+        technician: true,
+      },
+    });
+
+    return activeShifts.map((shift) => shift.technician);
   }
 
   async autoEndOpenShifts() {
     const currentTime = new Date();
-    console.log(`[${currentTime.toISOString()}] Auto-ending open shifts, breaks, and overtimes...`);
+    console.log(
+      `[${currentTime.toISOString()}] Auto-ending open shifts, breaks, and overtimes...`,
+    );
 
     // Find all shifts that have started but not ended (open shifts)
     const openShifts = await this.prisma.shift.findMany({
@@ -444,7 +482,9 @@ export class TechnicianService {
         );
 
         endedBreaks++;
-        console.log(`Auto-ended break for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+        console.log(
+          `Auto-ended break for technician: ${shift.technician.fName} ${shift.technician.lName}`,
+        );
       } catch (error) {
         console.error(`Failed to end break for shift ${shift.id}:`, error);
       }
@@ -464,7 +504,9 @@ export class TechnicianService {
         );
 
         endedOvertimes++;
-        console.log(`Auto-ended overtime for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+        console.log(
+          `Auto-ended overtime for technician: ${shift.technician.fName} ${shift.technician.lName}`,
+        );
       } catch (error) {
         console.error(`Failed to end overtime for shift ${shift.id}:`, error);
       }
@@ -484,7 +526,9 @@ export class TechnicianService {
         );
 
         endedShifts++;
-        console.log(`Auto-ended shift for technician: ${shift.technician.fName} ${shift.technician.lName}`);
+        console.log(
+          `Auto-ended shift for technician: ${shift.technician.fName} ${shift.technician.lName}`,
+        );
       } catch (error) {
         console.error(`Failed to end shift ${shift.id}:`, error);
       }
@@ -500,5 +544,14 @@ export class TechnicianService {
 
     console.log(`Auto-end completed:`, summary);
     return summary;
+  }
+
+  private getStartOfDayUTC3(date: Date): Date {
+    // Create start of day in UTC+3 timezone
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    // Subtract 3 hours to convert UTC+3 to UTC
+    startOfDay.setTime(startOfDay.getTime() - 4 * 60 * 60 * 1000);
+    return startOfDay;
   }
 }
