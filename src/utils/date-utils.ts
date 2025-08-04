@@ -10,57 +10,55 @@ export class DateUtils {
   /**
    * Get the start of business day (1 AM UTC+3)
    * @param date - The date to get start of day for
-   * @returns Date object representing 10 PM UTC of the given/previous day (which is 1 AM UTC+3)
+   * @returns Date object representing start of business day in UTC
    */
   static getStartOfDayUTC3(date: Date): Date {
-    // Create start of day at 1 AM in UTC+3 timezone
-    // First, get the date in UTC
-    const utcDate = new Date(date.toISOString());
+    // Convert to Jordan timezone (UTC+3)
+    const jordanTime = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Amman"}));
     
-    // Set to midnight UTC
-    utcDate.setUTCHours(0, 0, 0, 0);
-    
-    // Check if the input date's UTC+3 time is before 1 AM
-    // UTC+3 hours = UTC hours + 3
-    const utc3Hours = date.getUTCHours() + 3;
-    if (utc3Hours < 1 || (utc3Hours >= 24 && (utc3Hours - 24) < 1)) {
-      // If it's before 1 AM UTC+3, we need the previous day
-      utcDate.setUTCDate(utcDate.getUTCDate() - 1);
+    // If it's before 1 AM Jordan time, use previous day
+    if (jordanTime.getHours() < 1) {
+      jordanTime.setDate(jordanTime.getDate() - 1);
     }
     
-    // Set to 10 PM UTC (which is 1 AM UTC+3)
-    utcDate.setUTCHours(22, 0, 0, 0);
+    // Set to 1 AM Jordan time for the business day start
+    jordanTime.setHours(1, 0, 0, 0);
     
-    return utcDate;
+    // Convert back to UTC by subtracting 3 hours
+    return new Date(jordanTime.getTime() - (3 * 60 * 60 * 1000));
   }
 
   /**
-   * Get the end of business day (12:59:59 AM UTC+3 of next day)
+   * Get the end of business day (0:59:59 AM UTC+3 of next day)
    * @param date - The date to get end of day for
-   * @returns Date object representing 9:59:59 PM UTC of the next day (which is 12:59:59 AM UTC+3)
+   * @returns Date object representing end of business day in UTC
    */
   static getEndOfDayUTC3(date: Date): Date {
-    // Create end of day at 12:59:59 AM UTC+3 of the NEXT day (just before 1 AM start)
-    // First get start of current business day
+    // Get start of business day
     const startOfDay = this.getStartOfDayUTC3(date);
     
-    // Add 24 hours to get to next day's 10 PM UTC (1 AM UTC+3)
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setUTCHours(endOfDay.getUTCHours() + 24);
-    
-    // Subtract 1 millisecond to get 12:59:59.999 AM UTC+3
-    endOfDay.setTime(endOfDay.getTime() - 1);
+    // Add 24 hours to get to next day's 1 AM, then subtract 1 second to get 12:59:59 AM
+    const endOfDay = new Date(startOfDay.getTime() + (24 * 60 * 60 * 1000) - 1000);
     
     return endOfDay;
   }
 
   /**
    * Get the current business date based on UTC+3
-   * @returns The current date adjusted for business day start time
+   * @returns The current business date (if before 1 AM Jordan time, returns previous day)
    */
   static getCurrentBusinessDateUTC3(): Date {
     const now = new Date();
-    return this.getStartOfDayUTC3(now);
+    const jordanTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Amman"}));
+    
+    // If it's before 1 AM Jordan time, business date is previous day
+    if (jordanTime.getHours() < 1) {
+      jordanTime.setDate(jordanTime.getDate() - 1);
+    }
+    
+    // Return the business date (without time)
+    jordanTime.setHours(0, 0, 0, 0);
+    return jordanTime;
   }
 
   /**
@@ -96,17 +94,14 @@ export class DateUtils {
 
   /**
    * Get date string in YYYY-MM-DD format based on UTC+3 business day
-   * @param date - Date to format
    * @returns Date string
    */
-  static getBusinessDayString(date: Date): string {
-    const businessDay = this.getStartOfDayUTC3(date);
-    // Add 3 hours to convert from UTC to UTC+3 for display
-    const displayDate = new Date(businessDay.getTime() + 3 * 60 * 60 * 1000);
+  static getBusinessDayString(): string {
+    const businessDate = this.getCurrentBusinessDateUTC3();
     
-    const year = displayDate.getUTCFullYear();
-    const month = String(displayDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(displayDate.getUTCDate()).padStart(2, '0');
+    const year = businessDate.getFullYear();
+    const month = String(businessDate.getMonth() + 1).padStart(2, '0');
+    const day = String(businessDate.getDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
   }
