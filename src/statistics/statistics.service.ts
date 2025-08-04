@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { StatsFilterDto, TimeRange } from './models/stats-filter.dto';
+import { DateUtils } from '../utils/date-utils';
 import {
   AddOnRevenue,
   RevenueSummary,
@@ -26,22 +27,11 @@ export class StatisticsService {
   constructor(private prisma: PrismaService) {}
 
   private getStartOfDayUTC3(date: Date): Date {
-    // Create start of day at 1 AM in UTC+3 timezone
-    const startOfDay = new Date(date);
-    startOfDay.setHours(1, 0, 0, 0);
-    // Subtract 3 hours to convert UTC+3 to UTC
-    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
-    return startOfDay;
+    return DateUtils.getStartOfDayUTC3(date);
   }
 
   private getEndOfDayUTC3(date: Date): Date {
-    // Create end of day at 12:59:59 AM of the NEXT day (before 1 AM start) in UTC+3 timezone
-    const endOfDay = new Date(date);
-    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
-    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
-    // Subtract 3 hours to convert UTC+3 to UTC
-    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
-    return endOfDay;
+    return DateUtils.getEndOfDayUTC3(date);
   }
 
   private getDateRange(filter: StatsFilterDto): { start: Date; end: Date } {
@@ -55,7 +45,7 @@ export class StatisticsService {
 
     switch (filter.range) {
       case TimeRange.DAY:
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        start = this.getStartOfDayUTC3(now);
         break;
       case TimeRange.MONTH:
         start = new Date(now.getFullYear(), now.getMonth(), 1);

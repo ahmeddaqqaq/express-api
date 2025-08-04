@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PaginationDto } from 'src/dto/pagination.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuditAction, TransactionStatus } from '@prisma/client';
+import { DateUtils } from '../utils/date-utils';
 
 @Injectable()
 export class AuditLogService {
@@ -235,14 +236,9 @@ export class AuditLogService {
   }
 
   async getDailyWorkingHours(technicianId: string, date: string) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(1, 0, 0, 0);
-    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000); // Convert UTC+3 to UTC
-
-    const endOfDay = new Date(date);
-    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
-    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
-    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000); // Convert UTC+3 to UTC
+    const dateObj = new Date(date);
+    const startOfDay = DateUtils.getStartOfDayUTC3(dateObj);
+    const endOfDay = DateUtils.getEndOfDayUTC3(dateObj);
 
     const logs = await this.prisma.auditLog.findMany({
       where: {

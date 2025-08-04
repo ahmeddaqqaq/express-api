@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { DateUtils } from '../utils/date-utils';
 import { CreateTransactionDto } from './dto/transaction-dto';
 import {
   UpdateTransactionDto,
@@ -32,12 +33,7 @@ export class TransactionService {
 
   // Helper functions for UTC+3 timezone handling
   private getStartOfDayUTC3(date: Date): Date {
-    // Create start of day at 1 AM in UTC+3 timezone
-    const startOfDay = new Date(date);
-    startOfDay.setHours(1, 0, 0, 0);
-    // Subtract 3 hours to convert UTC+3 to UTC
-    startOfDay.setTime(startOfDay.getTime() - 3 * 60 * 60 * 1000);
-    return startOfDay;
+    return DateUtils.getStartOfDayUTC3(date);
   }
 
   private generateRandomHex(): string {
@@ -66,13 +62,7 @@ export class TransactionService {
   }
 
   private getEndOfDayUTC3(date: Date): Date {
-    // Create end of day at 12:59:59 AM of the NEXT day (before 1 AM start) in UTC+3 timezone
-    const endOfDay = new Date(date);
-    endOfDay.setDate(endOfDay.getDate() + 1); // Move to next day
-    endOfDay.setHours(0, 59, 59, 999); // Set to 12:59:59 AM of next day
-    // Subtract 3 hours to convert UTC+3 to UTC
-    endOfDay.setTime(endOfDay.getTime() - 3 * 60 * 60 * 1000);
-    return endOfDay;
+    return DateUtils.getEndOfDayUTC3(date);
   }
 
   async create(createTransactionDto: CreateTransactionDto) {
