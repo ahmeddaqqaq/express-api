@@ -17,6 +17,16 @@ export class ImageResponse {
   @ApiProperty({ enum: TransactionStatus, required: false })
   uploadedAtStage?: TransactionStatus;
 
+  @ApiProperty({ 
+    required: false,
+    description: 'User who uploaded this image'
+  })
+  uploadedBy?: {
+    id: string;
+    name: string;
+    role: string;
+  };
+
   @ApiProperty()
   createdAt: Date;
 

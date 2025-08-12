@@ -65,6 +65,31 @@ export class TransactionResponse {
   })
   assignments: any[];
 
+  @ApiProperty({ 
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        transactionId: { type: 'string' },
+        salesId: { type: 'string' },
+        addOnNames: { type: 'array', items: { type: 'string' } },
+        assignedAt: { type: 'string', format: 'date-time' },
+        sales: { 
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            mobileNumber: { type: 'string' },
+            isActive: { type: 'boolean' },
+          }
+        },
+      },
+    },
+  })
+  salesAssignments: any[];
+
   @ApiProperty()
   deliverTime: string;
 

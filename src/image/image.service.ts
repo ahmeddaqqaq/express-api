@@ -14,7 +14,11 @@ export class ImageService {
     private readonly configService: ConfigService,
   ) {}
 
-  async uploadImage(file: Express.Multer.File, uploadedAtStage?: TransactionStatus) {
+  async uploadImage(
+    file: Express.Multer.File,
+    uploadedAtStage?: TransactionStatus,
+    uploadedById?: string,
+  ) {
     const key = `images/${Date.now()}-${file.originalname}`;
     await this.s3Service.uploadFile(file, key);
     
@@ -28,6 +32,16 @@ export class ImageService {
         url,
         isActive: true,
         uploadedAtStage,
+        uploadedById,
+      },
+      include: {
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
       },
     });
   }
@@ -37,6 +51,13 @@ export class ImageService {
       where: { id },
       include: {
         transactions: true,
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
       },
     });
   }
@@ -52,6 +73,13 @@ export class ImageService {
       where,
       include: {
         transactions: true,
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
       },
     });
   }

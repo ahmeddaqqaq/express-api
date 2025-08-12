@@ -16,6 +16,9 @@ model user {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  
+  // Relations
+  uploadedImages Image[]
 }
 
 model Image {
@@ -24,6 +27,8 @@ model Image {
   url             String
   isActive        Boolean            @default(true)
   uploadedAtStage TransactionStatus? // Track which stage the image was uploaded in
+  uploadedBy      user?              @relation(fields: [uploadedById], references: [id])
+  uploadedById    String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -107,6 +112,7 @@ model Transaction {
   createdById  String
   auditLogs    AuditLog[]
   assignments  TechnicianAssignment[]
+  salesAssignments TransactionAddonSales[]
   posOrder     PosOrder?
 }
 
@@ -190,6 +196,31 @@ model Supervisor {
   createdTransactions Transaction[] @relation("CreatedBy")
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+}
+
+model Sales {
+  id                  String                 @id @default(uuid())
+  firstName           String
+  lastName            String
+  mobileNumber        String?                @unique
+  isActive            Boolean                @default(true)
+  addonsAssignments   TransactionAddonSales[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+}
+
+model TransactionAddonSales {
+  id            String      @id @default(uuid())
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transactionId String
+  sales         Sales       @relation(fields: [salesId], references: [id])
+  salesId       String
+  addOnNames    String[]    // Store addon names for this assignment
+  assignedAt    DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  @@unique([transactionId, salesId])
 }
 
 model AuditLog {

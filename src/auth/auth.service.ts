@@ -56,7 +56,7 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({
       where: { mobileNumber: dto.mobileNumber },
     });
-    if (existing) throw new ConflictException('Mobile number already in use');
+    if (existing) throw new ConflictException(`Mobile number ${dto.mobileNumber} is already registered. Please use a different mobile number or sign in with your existing account.`);
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -78,7 +78,7 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid mobile number or password. Please check your credentials and try again.');
     }
 
     return this.signTokens(user.id, user.role);
@@ -119,12 +119,12 @@ export class AuthService {
       });
 
       if (!user || !user.isActive) {
-        throw new UnauthorizedException('User not found or inactive');
+        throw new UnauthorizedException('Your account was not found or has been deactivated. Please contact an administrator for assistance.');
       }
 
       return this.signTokens(user.id, user.role);
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Your session has expired. Please sign in again to continue.');
     }
   }
 
@@ -142,7 +142,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('User account not found. Please verify your credentials.');
     }
 
     return {

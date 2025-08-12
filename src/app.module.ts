@@ -20,6 +20,7 @@ import { AuthModule } from './auth/auth.module';
 import { SeederModule } from './seeder/seeder.module';
 import { IntegrationModule } from './integration/integration.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { SalesModule } from './sales/sales.module';
 import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
@@ -43,6 +44,7 @@ import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
     SeederModule,
     IntegrationModule,
     SchedulerModule,
+    SalesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

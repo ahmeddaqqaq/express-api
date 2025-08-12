@@ -19,6 +19,7 @@ import axios from 'axios';
 import { CalculateTotalDto } from './dto/calculate-total.dto';
 import { AuditLogService } from 'src/audit-log/audit-log.service';
 import { IntegrationService } from 'src/integration/integration.service';
+import { AssignSalesToAddonsDto } from './dto/assign-sales-to-addons.dto';
 
 @Injectable()
 export class TransactionService {
@@ -65,13 +66,14 @@ export class TransactionService {
     return DateUtils.getEndOfDayUTC3(date);
   }
 
-  async create(createTransactionDto: CreateTransactionDto) {
+  async create(createTransactionDto: CreateTransactionDto, userId?: string) {
+    console.log('TransactionService.create - userId:', userId);
     const transaction = await this.prisma.transaction.create({
       data: {
         customer: { connect: { id: createTransactionDto.customerId } },
         car: { connect: { id: createTransactionDto.carId } },
         service: { connect: { id: createTransactionDto.serviceId } },
-        createdBy: { connect: { id: createTransactionDto.createdById } },
+        createdBy: userId ? { connect: { id: userId } } : undefined,
         addOns: {
           connect: createTransactionDto.addOnsIds?.map((id) => ({ id })) || [],
         },
@@ -89,10 +91,25 @@ export class TransactionService {
         service: true,
         addOns: true,
         createdBy: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
         assignments: {
           include: {
             technician: true,
+          },
+        },
+        salesAssignments: {
+          include: {
+            sales: true,
           },
         },
       },
@@ -198,12 +215,27 @@ export class TransactionService {
             model: true,
           },
         },
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
         service: true,
         addOns: true,
         assignments: {
           include: {
             technician: true,
+          },
+        },
+        salesAssignments: {
+          include: {
+            sales: true,
           },
         },
       },
@@ -246,9 +278,26 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         customer: true,
+        createdBy: true,
         service: true,
         addOns: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'asc',
@@ -282,9 +331,24 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         service: true,
         addOns: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'asc',
@@ -330,9 +394,24 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         service: true,
         addOns: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'asc',
@@ -376,9 +455,24 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         service: true,
         addOns: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'asc',
@@ -422,10 +516,25 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         service: true,
         addOns: true,
         invoice: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -469,10 +578,25 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         service: true,
         addOns: true,
         createdBy: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -495,12 +619,12 @@ export class TransactionService {
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     if (transaction.status !== 'scheduled') {
       throw new BadRequestException(
-        'Only scheduled transactions can be cancelled',
+        `Cannot cancel transaction. Transaction is currently in ${transaction.status} status. Only scheduled transactions can be cancelled.`,
       );
     }
 
@@ -525,8 +649,23 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         createdBy: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -545,12 +684,22 @@ export class TransactionService {
           },
         },
         assignments: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     // Store original status for phase transition logging
@@ -601,8 +750,23 @@ export class TransactionService {
             technician: true,
           },
         },
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
         createdBy: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
         invoice: true,
       },
     });
@@ -688,12 +852,12 @@ export class TransactionService {
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     if (transaction.status !== 'scheduled') {
       throw new BadRequestException(
-        'Transaction can only be edited when in scheduled status',
+        `Cannot edit transaction. Transaction is currently in ${transaction.status} status. Only scheduled transactions can be edited.`,
       );
     }
 
@@ -715,7 +879,7 @@ export class TransactionService {
         },
       });
       if (addOns.length !== editDto.addOnsIds.length) {
-        throw new BadRequestException('One or more addons not found');
+        throw new BadRequestException('One or more selected add-ons were not found. Please verify your selection and try again.');
       }
     }
 
@@ -761,10 +925,25 @@ export class TransactionService {
         service: true,
         addOns: true,
         createdBy: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
         assignments: {
           include: {
             technician: true,
+          },
+        },
+        salesAssignments: {
+          include: {
+            sales: true,
           },
         },
       },
@@ -817,10 +996,24 @@ export class TransactionService {
   async uploadTransactionImages(
     transactionId: string,
     files: Express.Multer.File[],
+    userId?: string,
   ) {
+    console.log('uploadTransactionImages called with userId:', userId);
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { images: true },
+      include: {
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!transaction) {
@@ -830,13 +1023,13 @@ export class TransactionService {
     }
 
     if (!files || files.length === 0) {
-      throw new BadRequestException('No files uploaded');
+      throw new BadRequestException('No image files were uploaded. Please select at least one image to upload.');
     }
 
     for (const file of files) {
       if (!file.mimetype.startsWith('image/')) {
         throw new BadRequestException(
-          `File ${file.originalname} is not an image file. Only image files are allowed.`,
+          `File ${file.originalname} is not a valid image format. Please upload only JPG, PNG, or WebP image files.`,
         );
       }
     }
@@ -858,6 +1051,7 @@ export class TransactionService {
         url,
         isActive: true,
         uploadedAtStage: transaction.status,
+        uploadedById: userId || null,
       };
     });
 
@@ -871,7 +1065,17 @@ export class TransactionService {
         },
       },
       include: {
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -886,6 +1090,15 @@ export class TransactionService {
         images: {
           where: stage ? { uploadedAtStage: stage } : {},
           orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
         },
       },
     });
@@ -905,6 +1118,15 @@ export class TransactionService {
       include: {
         images: {
           orderBy: { createdAt: 'desc' },
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
         },
       },
     });
@@ -938,13 +1160,13 @@ export class TransactionService {
   ) {
     if (!['stageOne', 'stageTwo', 'stageThree'].includes(phase)) {
       throw new BadRequestException(
-        'Invalid phase. Only stageOne, stageTwo, and stageThree are allowed for technician assignments.',
+        `Invalid phase '${phase}'. Technicians can only be assigned to Phase 1 (stageOne), Phase 2 (stageTwo), or Phase 3 (stageThree).`,
       );
     }
 
     if (!technicianIds || technicianIds.length === 0) {
       throw new BadRequestException(
-        'At least one technician ID must be provided',
+        'No technician selected. Please select at least one technician to assign to this phase.',
       );
     }
 
@@ -952,12 +1174,22 @@ export class TransactionService {
       where: { id: transactionId },
       include: {
         assignments: true,
-        images: true,
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     const technicians = await this.prisma.technician.findMany({
@@ -983,9 +1215,9 @@ export class TransactionService {
         (a) => a.technicianId,
       );
       throw new BadRequestException(
-        `One or more technicians are already assigned to ${phase} for this transaction: ${existingTechnicianIds.join(
+        `The following technicians are already assigned to ${phase === 'stageOne' ? 'Phase 1' : phase === 'stageTwo' ? 'Phase 2' : 'Phase 3'}: ${existingTechnicianIds.join(
           ', ',
-        )}`,
+        )}. Please select different technicians.`,
       );
     }
 
@@ -1024,12 +1256,27 @@ export class TransactionService {
             technician: true,
           },
         },
-        images: true,
+        salesAssignments: {
+          include: {
+            sales: true,
+          },
+        },
+        images: {
+          include: {
+            uploadedBy: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
       },
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     const currentPhase = transaction.status;
@@ -1050,14 +1297,14 @@ export class TransactionService {
         return {
           isValid: false,
           message:
-            'Cannot move to stageTwo: No technician assigned to stageOne',
+            'Cannot move to Phase 2. Please assign a technician to Phase 1 first.',
         };
       }
 
       if (stageOneImages.length === 0) {
         return {
           isValid: false,
-          message: 'Cannot move to stageTwo: No images uploaded for stageOne',
+          message: 'Cannot move to Phase 2. Please upload at least one image for Phase 1 completion.',
         };
       }
 
@@ -1076,14 +1323,14 @@ export class TransactionService {
         return {
           isValid: false,
           message:
-            'Cannot move to stageThree: No technician assigned to stageTwo',
+            'Cannot move to Phase 3. Please assign a technician to Phase 2 first.',
         };
       }
 
       if (stageTwoImages.length === 0) {
         return {
           isValid: false,
-          message: 'Cannot move to stageThree: No images uploaded for stageTwo',
+          message: 'Cannot move to Phase 3. Please upload at least one image for Phase 2 completion.',
         };
       }
 
@@ -1101,14 +1348,14 @@ export class TransactionService {
       if (!stageThreeAssignment) {
         return {
           isValid: false,
-          message: 'Cannot complete: No technician assigned to stageThree',
+          message: 'Cannot complete transaction. Please assign a technician to Phase 3 first.',
         };
       }
 
       if (stageThreeImages.length === 0) {
         return {
           isValid: false,
-          message: 'Cannot complete: No images uploaded for stageThree',
+          message: 'Cannot complete transaction. Please upload at least one image for Phase 3 completion.',
         };
       }
 
@@ -1120,7 +1367,7 @@ export class TransactionService {
 
     return {
       isValid: false,
-      message: `Invalid phase transition from ${currentPhase} to ${targetPhase}`,
+      message: `Invalid status change. Cannot move directly from ${currentPhase === 'scheduled' ? 'Scheduled' : currentPhase === 'stageOne' ? 'Phase 1' : currentPhase === 'stageTwo' ? 'Phase 2' : currentPhase === 'stageThree' ? 'Phase 3' : currentPhase} to ${targetPhase === 'stageOne' ? 'Phase 1' : targetPhase === 'stageTwo' ? 'Phase 2' : targetPhase === 'stageThree' ? 'Phase 3' : targetPhase === 'completed' ? 'Completed' : targetPhase}. Please follow the correct workflow sequence.`,
     };
   }
 
@@ -1140,7 +1387,7 @@ export class TransactionService {
     });
 
     if (!transaction) {
-      throw new NotFoundException('Transaction not found');
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
     }
 
     return transaction.assignments;
@@ -1158,6 +1405,99 @@ export class TransactionService {
       },
       include: {
         technician: true,
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+  }
+
+  async assignSalesToAddons(assignSalesDto: AssignSalesToAddonsDto) {
+    const { transactionId, salesId, addOnNames } = assignSalesDto;
+
+    // Verify transaction exists and is in scheduled status
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
+    }
+
+    if (transaction.status !== 'scheduled') {
+      throw new BadRequestException(
+        `Cannot assign sales person to addons. Transaction is currently in ${transaction.status} status. Sales assignments can only be made for scheduled transactions.`,
+      );
+    }
+
+    // Verify sales person exists
+    const sales = await this.prisma.sales.findUnique({
+      where: { id: salesId },
+    });
+
+    if (!sales) {
+      throw new NotFoundException('Sales person not found. Please verify the sales person ID and try again.');
+    }
+
+    // Check if there's already an assignment for this transaction and sales person
+    const existingAssignment = await this.prisma.transactionAddonSales.findUnique({
+      where: {
+        transactionId_salesId: {
+          transactionId,
+          salesId,
+        },
+      },
+    });
+
+    if (existingAssignment) {
+      // Update existing assignment
+      return this.prisma.transactionAddonSales.update({
+        where: { id: existingAssignment.id },
+        data: {
+          addOnNames,
+        },
+        include: {
+          sales: true,
+          transaction: {
+            include: {
+              addOns: true,
+            },
+          },
+        },
+      });
+    } else {
+      // Create new assignment
+      return this.prisma.transactionAddonSales.create({
+        data: {
+          transactionId,
+          salesId,
+          addOnNames,
+        },
+        include: {
+          sales: true,
+          transaction: {
+            include: {
+              addOns: true,
+            },
+          },
+        },
+      });
+    }
+  }
+
+  async getSalesAssignments(transactionId: string) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found. Please verify the transaction ID and try again.');
+    }
+
+    return this.prisma.transactionAddonSales.findMany({
+      where: { transactionId },
+      include: {
+        sales: true,
       },
       orderBy: {
         assignedAt: 'desc',

@@ -28,7 +28,7 @@ export class CustomerService {
 
       if (existingCustomer) {
         throw new ConflictException(
-          `Customer with this mobile number already exists`,
+          `A customer with mobile number ${createCustomerDto.mobileNumber} already exists. Please use a different mobile number or update the existing customer.`,
         );
       }
     }
@@ -133,7 +133,7 @@ export class CustomerService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
     }
 
     return customer;
@@ -145,7 +145,7 @@ export class CustomerService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
     }
 
     await this.prisma.customer.update({
@@ -165,7 +165,7 @@ export class CustomerService {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
     }
 
     const updatedCustomer = await this.prisma.customer.update({
@@ -183,7 +183,7 @@ export class CustomerService {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
     }
 
     await this.prisma.customer.delete({

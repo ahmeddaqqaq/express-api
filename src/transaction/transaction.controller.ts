@@ -30,8 +30,10 @@ import { CalculateTotalDto } from './dto/calculate-total.dto';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { User } from 'src/auth/user.decorator';
 import { TransactionStatus } from '@prisma/client';
 import { AssignTechnicianToPhaseDto } from './dto/update-transaction-dto';
+import { AssignSalesToAddonsDto } from './dto/assign-sales-to-addons.dto';
 
 @ApiTags('Transaction')
 @Controller('transaction')
@@ -58,8 +60,9 @@ export class TransactionController {
       },
     },
   })
-  async create(@Body() createTransactionDto: CreateTransactionDto) {
-    return await this.transactionService.create(createTransactionDto);
+  async create(@Body() createTransactionDto: CreateTransactionDto, @User() user: any) {
+    console.log('Create transaction - user:', user);
+    return await this.transactionService.create(createTransactionDto, user?.userId);
   }
 
   @Get('findMany')
@@ -512,10 +515,14 @@ export class TransactionController {
   async uploadImage(
     @Param('id', ParseUUIDPipe) transactionId: string,
     @UploadedFile() file: Express.Multer.File,
+    @User() user: any,
   ) {
-    return this.transactionService.uploadTransactionImages(transactionId, [
-      file,
-    ]);
+    console.log('User object in uploadImage:', user);
+    return this.transactionService.uploadTransactionImages(
+      transactionId,
+      [file],
+      user?.userId,
+    );
   }
 
   @Get(':id/images')
@@ -677,4 +684,25 @@ export class TransactionController {
     return this.transactionService.getPhaseAssignments(transactionId, phase);
   }
 
+  @Post('assign-sales-to-addons')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Assign sales person to transaction addons' })
+  @ApiResponse({
+    status: 201,
+    description: 'Sales person assigned to addons successfully',
+  })
+  assignSalesToAddons(@Body() assignSalesDto: AssignSalesToAddonsDto) {
+    return this.transactionService.assignSalesToAddons(assignSalesDto);
+  }
+
+  @Get(':id/sales-assignments')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Get sales assignments for a transaction' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sales assignments retrieved successfully',
+  })
+  getSalesAssignments(@Param('id', ParseUUIDPipe) transactionId: string) {
+    return this.transactionService.getSalesAssignments(transactionId);
+  }
 }

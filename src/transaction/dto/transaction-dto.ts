@@ -41,10 +41,12 @@ export class CreateTransactionDto {
   @ApiProperty({
     description: 'ID of the supervisor creating this transaction',
     format: 'uuid',
-    example: '550e8400-e29b-41d4-a716-446655440004'
+    example: '550e8400-e29b-41d4-a716-446655440004',
+    required: false
   })
   @IsUUID()
-  createdById: string;
+  @IsOptional()
+  createdById?: string;
 
   @ApiProperty({
     description: 'Expected delivery time (optional)',

@@ -26,6 +26,7 @@ import {
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
+import { User } from 'src/auth/user.decorator';
 import { FilterImagesDto } from './dto/filter-images.dto';
 
 @Controller('images')
@@ -52,8 +53,11 @@ export class ImageController {
   })
   @ApiResponse({ status: 201, description: 'Image uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    return this.imageService.uploadImage(file);
+  async uploadImage(
+    @UploadedFile() file: Express.Multer.File,
+    @User() user: any,
+  ) {
+    return this.imageService.uploadImage(file, undefined, user?.userId);
   }
 
   @Get()
