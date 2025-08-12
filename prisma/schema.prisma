@@ -19,6 +19,7 @@ model user {
   
   // Relations
   uploadedImages Image[]
+  createdTransactions Transaction[] @relation("CreatedByUser")
 }
 
 model Image {
@@ -108,8 +109,10 @@ model Transaction {
   OTP          String?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
-  createdBy    Supervisor             @relation("CreatedBy", fields: [createdById], references: [id])
-  createdById  String
+  createdBy        Supervisor? @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById      String?
+  createdByUser    user?       @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  createdByUserId  String?
   auditLogs    AuditLog[]
   assignments  TechnicianAssignment[]
   salesAssignments TransactionAddonSales[]

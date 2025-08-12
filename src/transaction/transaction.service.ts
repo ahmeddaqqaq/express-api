@@ -73,7 +73,7 @@ export class TransactionService {
         customer: { connect: { id: createTransactionDto.customerId } },
         car: { connect: { id: createTransactionDto.carId } },
         service: { connect: { id: createTransactionDto.serviceId } },
-        createdBy: userId ? { connect: { id: userId } } : undefined,
+        createdByUser: userId ? { connect: { id: userId } } : undefined,
         addOns: {
           connect: createTransactionDto.addOnsIds?.map((id) => ({ id })) || [],
         },
@@ -91,6 +91,7 @@ export class TransactionService {
         service: true,
         addOns: true,
         createdBy: true,
+        createdByUser: true,
         images: {
           include: {
             uploadedBy: {
@@ -209,6 +210,7 @@ export class TransactionService {
       include: {
         customer: true,
         createdBy: true,
+        createdByUser: true,
         car: {
           include: {
             brand: true,
@@ -285,6 +287,7 @@ export class TransactionService {
         },
         customer: true,
         createdBy: true,
+        createdByUser: true,
         service: true,
         addOns: true,
         images: {
@@ -586,6 +589,7 @@ export class TransactionService {
         service: true,
         addOns: true,
         createdBy: true,
+        createdByUser: true,
         images: {
           include: {
             uploadedBy: {
@@ -655,6 +659,7 @@ export class TransactionService {
           },
         },
         createdBy: true,
+        createdByUser: true,
         images: {
           include: {
             uploadedBy: {
@@ -756,6 +761,7 @@ export class TransactionService {
           },
         },
         createdBy: true,
+        createdByUser: true,
         images: {
           include: {
             uploadedBy: {
@@ -925,6 +931,7 @@ export class TransactionService {
         service: true,
         addOns: true,
         createdBy: true,
+        createdByUser: true,
         images: {
           include: {
             uploadedBy: {
