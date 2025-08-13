@@ -9,6 +9,9 @@ export class BrandResponse {
   @ApiProperty()
   name: string;
 
+  @ApiProperty({ required: false })
+  logoUrl?: string;
+
   // @ApiProperty({ type: ImageResponse })
   // logo: ImageResponse;
 

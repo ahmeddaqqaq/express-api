@@ -70,6 +70,7 @@ model Car {
 model Brand {
   id        String   @id @default(uuid())
   name      String   @unique
+  logoUrl   String?
   models    Model[]
   cars      Car[]
   createdAt DateTime @default(now())
