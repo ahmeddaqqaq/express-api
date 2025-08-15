@@ -213,7 +213,7 @@ export class IntegrationService {
         },
         service: true,
         addOns: true,
-        createdBy: true,
+        createdByUser: true,
       },
     });
 

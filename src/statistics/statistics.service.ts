@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SalesRecordService } from 'src/sales-record/sales-record.service';
 import { StatsFilterDto, TimeRange } from './models/stats-filter.dto';
 import { DateUtils } from '../utils/date-utils';
 import {
@@ -19,12 +20,15 @@ import {
   DailyReportResponseDto,
   TechnicianShiftReport,
   CashSummary,
-  SupervisorSalesReport,
+  UserSalesReport,
 } from './models/daily-report.dto';
 
 @Injectable()
 export class StatisticsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    public salesRecordService: SalesRecordService,
+  ) {}
 
   private getStartOfDayUTC3(date: Date): Date {
     return DateUtils.getStartOfDayUTC3(date);
@@ -37,21 +41,33 @@ export class StatisticsService {
   private getDateRange(filter: StatsFilterDto): { start: Date; end: Date } {
     const now = new Date();
     let start: Date;
-    let end: Date = now;
+    let end: Date;
 
     if (filter.customStart && filter.customEnd) {
-      return { start: filter.customStart, end: filter.customEnd };
+      // Apply business day boundaries to custom dates
+      return {
+        start: this.getStartOfDayUTC3(filter.customStart),
+        end: this.getEndOfDayUTC3(filter.customEnd),
+      };
     }
+
+    // End time should always be the end of current business day
+    end = this.getEndOfDayUTC3(now);
 
     switch (filter.range) {
       case TimeRange.DAY:
+        // Current business day
         start = this.getStartOfDayUTC3(now);
         break;
       case TimeRange.MONTH:
-        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        // Start of current month with business day boundary
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        start = this.getStartOfDayUTC3(startOfMonth);
         break;
       case TimeRange.YEAR:
-        start = new Date(now.getFullYear(), 0, 1);
+        // Start of current year with business day boundary
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        start = this.getStartOfDayUTC3(startOfYear);
         break;
       case TimeRange.ALL:
       default:
@@ -67,14 +83,13 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     const [
       activeCustomers,
       completedTransactions,
       newCustomers,
-      completedTransactionsCount,
       scheduledTransactions,
       inProgressTransaction,
     ] = await Promise.all([
@@ -87,21 +102,15 @@ export class StatisticsService {
       this.prisma.transaction.count({
         where: {
           status: 'completed',
-          updatedAt: { lte: end },
-        },
-      }),
-      this.prisma.customer.count({
-        where: {
-          createdAt: {
+          updatedAt: {
             gte: start,
             lte: end,
           },
         },
       }),
-      this.prisma.transaction.count({
+      this.prisma.customer.count({
         where: {
-          status: 'completed',
-          updatedAt: {
+          createdAt: {
             gte: start,
             lte: end,
           },
@@ -135,7 +144,6 @@ export class StatisticsService {
       activeCustomers,
       completedTransactions,
       newCustomers,
-      completedTransactionsCount,
       scheduledTransactions,
       inProgressTransaction,
     };
@@ -146,7 +154,7 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     const [completedTrx, cancelledTrx] = await Promise.all([
@@ -183,29 +191,21 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
-    // Get all completed transactions in the time range
-    const transactions = await this.prisma.transaction.findMany({
-      where: {
-        status: 'completed',
-        updatedAt: {
-          gte: start,
-          lte: end,
-        },
-      },
-      include: {
-        service: true,
-        addOns: true,
-        invoice: true,
-        car: {
-          include: {
-            model: true,
-          },
-        },
-      },
-    });
+    // Get all sales records for completed transactions in the time range
+    const salesRecords = await this.salesRecordService.getSalesForPeriod(
+      start,
+      end,
+      undefined, // No specific seller filter
+      undefined, // No specific sale type filter
+    );
+
+    // Filter for completed transactions only
+    const completedSales = salesRecords.filter(
+      (sale) => sale.transaction && sale.transaction.status === 'completed',
+    );
 
     // Calculate service revenue
     const serviceMap = new Map<string, ServiceRevenue>();
@@ -217,46 +217,40 @@ export class StatisticsService {
     let serviceRevenue = 0;
     let addOnRevenue = 0;
 
-    for (const trx of transactions) {
-      if (!trx.invoice) continue;
+    for (const sale of completedSales) {
+      const saleTotal = sale.price * sale.quantity;
+      totalRevenue += saleTotal;
 
-      totalRevenue += trx.invoice.totalAmount;
+      if (sale.saleType === 'SERVICE') {
+        serviceRevenue += saleTotal;
 
-      // Service revenue
-      const serviceKey = trx.serviceId;
-      if (!serviceMap.has(serviceKey)) {
-        serviceMap.set(serviceKey, {
-          serviceId: trx.serviceId,
-          serviceName: trx.service.name,
-          count: 0,
-          totalRevenue: 0,
-        });
-      }
-      const serviceEntry = serviceMap.get(serviceKey);
-      serviceEntry.count += 1;
-      // Assuming service price is the main component of the invoice
-      // You might need to adjust this based on your actual pricing structure
-      const serviceAmount =
-        trx.invoice.totalAmount -
-        (trx.addOns?.reduce((sum, addOn) => sum + addOn.price, 0) || 0);
-      serviceEntry.totalRevenue += serviceAmount;
-      serviceRevenue += serviceAmount;
+        const serviceKey = sale.itemId;
+        if (!serviceMap.has(serviceKey)) {
+          serviceMap.set(serviceKey, {
+            serviceId: sale.itemId,
+            serviceName: sale.itemName,
+            count: 0,
+            totalRevenue: 0,
+          });
+        }
+        const serviceEntry = serviceMap.get(serviceKey);
+        serviceEntry.count += sale.quantity;
+        serviceEntry.totalRevenue += saleTotal;
+      } else if (sale.saleType === 'ADDON') {
+        addOnRevenue += saleTotal;
 
-      // Add-on revenue
-      for (const addOn of trx.addOns) {
-        const addOnKey = addOn.id;
+        const addOnKey = sale.itemId;
         if (!addOnMap.has(addOnKey)) {
           addOnMap.set(addOnKey, {
-            addOnId: addOn.id,
-            addOnName: addOn.name,
+            addOnId: sale.itemId,
+            addOnName: sale.itemName,
             count: 0,
             totalRevenue: 0,
           });
         }
         const addOnEntry = addOnMap.get(addOnKey);
-        addOnEntry.count += 1;
-        addOnEntry.totalRevenue += addOn.price;
-        addOnRevenue += addOn.price;
+        addOnEntry.count += sale.quantity;
+        addOnEntry.totalRevenue += saleTotal;
       }
     }
 
@@ -277,7 +271,7 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     const customers = await this.prisma.customer.findMany({
@@ -336,7 +330,7 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     const transactions = await this.prisma.transaction.findMany({
@@ -366,10 +360,11 @@ export class StatisticsService {
 
     transactions.forEach((transaction) => {
       const date = new Date(transaction.createdAt);
-      const hour = date.getHours();
-      const dayOfWeek = date.getDay();
+      // Convert to Jordan time (UTC+3) for accurate peak hour analysis
+      const jordanHour = (date.getUTCHours() + 3) % 24;
+      const dayOfWeek = date.getUTCDay(); // Use UTC day to be consistent
 
-      hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+      hourCounts.set(jordanHour, (hourCounts.get(jordanHour) || 0) + 1);
       dayCounts.set(dayOfWeek, (dayCounts.get(dayOfWeek) || 0) + 1);
     });
 
@@ -408,7 +403,7 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     const technicians = await this.prisma.technician.findMany({
@@ -471,7 +466,7 @@ export class StatisticsService {
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
     // Get all transactions with their stage progression
@@ -530,70 +525,79 @@ export class StatisticsService {
     return bottleneckData.sort((a, b) => b.bottleneckScore - a.bottleneckScore);
   }
 
-  async getSupervisorAddsOnSell(filter?: StatsFilterDto) {
+  async getUserAddOnSales(filter?: StatsFilterDto) {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
           start: new Date(0),
-          end: new Date(),
+          end: this.getEndOfDayUTC3(new Date()),
         };
 
-    const transactions = await this.prisma.transaction.findMany({
+    const salesRecords = await this.prisma.salesRecord.findMany({
       where: {
-        status: 'completed',
-        updatedAt: {
+        saleType: 'ADDON',
+        soldAt: {
           gte: start,
           lte: end,
         },
+        transaction: {
+          status: 'completed',
+        },
       },
       include: {
-        addOns: true,
-        createdBy: true,
+        seller: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        salesPerson: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
-    const supervisorAddOnSales = new Map<
+    const userAddOnSales = new Map<
       string,
       {
-        supervisorId: string;
-        supervisorName: string;
+        userId: string;
+        userName: string;
         totalAddOnRevenue: number;
         addOnCount: number;
       }
     >();
 
-    for (const transaction of transactions) {
-      if (
-        !transaction.createdBy ||
-        !transaction.addOns ||
-        transaction.addOns.length === 0
-      ) {
-        continue;
+    for (const record of salesRecords) {
+      // Handle both users and sales persons
+      const userKey = record.sellerId || record.salesPersonId;
+      if (!userKey) continue; // Skip if neither is set
+
+      let userName = '';
+      if (record.seller) {
+        userName = record.seller.name;
+      } else if (record.salesPerson) {
+        userName = `${record.salesPerson.firstName} ${record.salesPerson.lastName}`;
       }
 
-      const supervisorKey = transaction.createdBy.id;
-      const supervisorName = `${transaction.createdBy.firstName} ${transaction.createdBy.lastName}`;
-
-      if (!supervisorAddOnSales.has(supervisorKey)) {
-        supervisorAddOnSales.set(supervisorKey, {
-          supervisorId: transaction.createdBy.id,
-          supervisorName,
+      if (!userAddOnSales.has(userKey)) {
+        userAddOnSales.set(userKey, {
+          userId: userKey,
+          userName,
           totalAddOnRevenue: 0,
           addOnCount: 0,
         });
       }
 
-      const supervisorEntry = supervisorAddOnSales.get(supervisorKey);
-      const addOnRevenue = transaction.addOns.reduce(
-        (sum, addOn) => sum + addOn.price,
-        0,
-      );
-
-      supervisorEntry.totalAddOnRevenue += addOnRevenue;
-      supervisorEntry.addOnCount += transaction.addOns.length;
+      const userEntry = userAddOnSales.get(userKey);
+      userEntry.totalAddOnRevenue += record.price * record.quantity;
+      userEntry.addOnCount += record.quantity;
     }
 
-    return Array.from(supervisorAddOnSales.values()).sort(
+    return Array.from(userAddOnSales.values()).sort(
       (a, b) => b.totalAddOnRevenue - a.totalAddOnRevenue,
     );
   }
@@ -604,11 +608,16 @@ export class StatisticsService {
     const endOfDay = this.getEndOfDayUTC3(reportDate);
 
     // Get all technicians with their shifts for the specific date
+    // Since shifts are stored with calendar date (not timestamp),
+    // we need to use the business date (adjusted for 1am cutoff)
+    const businessDate = new Date(reportDate);
+    businessDate.setHours(0, 0, 0, 0); // Set to start of calendar day for shift lookup
+
     const technicians = await this.prisma.technician.findMany({
       include: {
         shifts: {
           where: {
-            date: startOfDay, // Shifts are stored with exact startOfDay date
+            date: businessDate, // Shifts are stored with calendar date
           },
         },
       },
@@ -618,32 +627,61 @@ export class StatisticsService {
     const technicianShifts: TechnicianShiftReport[] = await Promise.all(
       technicians.map(async (technician) => {
         const shift = technician.shifts[0];
-        
+
         if (!shift) {
           return {
             technicianId: technician.id,
             technicianName: `${technician.fName} ${technician.lName}`,
+            shiftStartTime: '00:00:00',
+            shiftEndTime: '00:00:00',
             totalShiftTime: '00:00:00',
             totalBreakTime: '00:00:00',
             totalOvertimeTime: '00:00:00',
             totalWorkingTime: '00:00:00',
+            overtimeCompensation: 0,
             worked: false,
           };
         }
 
-        const shiftTime = this.calculateDuration(shift.startTime, shift.endTime);
-        const breakTime = this.calculateDuration(shift.breakStart, shift.breakEnd);
-        const overtimeTime = this.calculateDuration(shift.overtimeStart, shift.overtimeEnd);
-        
-        const totalMinutes = Math.max(0, shiftTime.minutes + overtimeTime.minutes - breakTime.minutes);
+        const shiftTime = this.calculateDuration(
+          shift.startTime,
+          shift.endTime,
+        );
+        const breakTime = this.calculateDuration(
+          shift.breakStart,
+          shift.breakEnd,
+        );
+        const overtimeTime = this.calculateDuration(
+          shift.overtimeStart,
+          shift.overtimeEnd,
+        );
+
+        const totalMinutes = Math.max(
+          0,
+          shiftTime.minutes + overtimeTime.minutes - breakTime.minutes,
+        );
+
+        // Calculate overtime compensation (overtime minutes * 0.025 per minute)
+        const overtimeCompensation = overtimeTime.minutes * 0.025;
+
+        // Format shift start and end times
+        const shiftStartTime = shift.startTime
+          ? shift.startTime.toTimeString().slice(0, 8)
+          : '00:00:00';
+        const shiftEndTime = shift.endTime
+          ? shift.endTime.toTimeString().slice(0, 8)
+          : '00:00:00';
 
         return {
           technicianId: technician.id,
           technicianName: `${technician.fName} ${technician.lName}`,
+          shiftStartTime,
+          shiftEndTime,
           totalShiftTime: this.formatDuration(shiftTime.minutes),
           totalBreakTime: this.formatDuration(breakTime.minutes),
           totalOvertimeTime: this.formatDuration(overtimeTime.minutes),
           totalWorkingTime: this.formatDuration(totalMinutes),
+          overtimeCompensation,
           worked: true,
         };
       }),
@@ -677,74 +715,76 @@ export class StatisticsService {
             model: true,
           },
         },
-        createdBy: true,
+        createdByUser: true,
       },
     });
 
-    // Calculate cash summary
+    // Calculate cash summary from SalesRecord table
+    const salesForDay = await this.salesRecordService.getSalesForPeriod(
+      startOfDay,
+      endOfDay,
+      undefined, // No specific seller filter
+      undefined, // No specific sale type filter
+    );
+
+    // Filter for completed transactions only
+    const completedSales = salesForDay.filter(
+      (sale) => sale.transaction && sale.transaction.status === 'completed',
+    );
+
     let servicesCash = 0;
     let addOnsCash = 0;
-    let totalCash = 0;
 
-    for (const transaction of transactions) {
-      if (transaction.invoice) {
-        totalCash += transaction.invoice.totalAmount;
-        
-        // Calculate service cash (total - add-ons)
-        const addOnAmount = transaction.addOns?.reduce((sum, addOn) => sum + addOn.price, 0) || 0;
-        const serviceAmount = transaction.invoice.totalAmount - addOnAmount;
-        
-        servicesCash += serviceAmount;
-        addOnsCash += addOnAmount;
+    for (const sale of completedSales) {
+      if (sale.saleType === 'SERVICE') {
+        servicesCash += sale.price * sale.quantity;
+      } else if (sale.saleType === 'ADDON') {
+        addOnsCash += sale.price * sale.quantity;
       }
     }
+
+    const totalCash = servicesCash + addOnsCash;
 
     const cashSummary: CashSummary = {
       servicesCash,
       addOnsCash,
       totalCash,
-      transactionCount: transactions.length,
+      transactionCount: transactions.length, // Keep transaction count from actual transactions
     };
 
-    // Get supervisor sales for the day
-    const supervisorSalesMap = new Map<string, SupervisorSalesReport>();
-
-    for (const transaction of transactions) {
-      if (transaction.createdBy && transaction.addOns && transaction.addOns.length > 0) {
-        const supervisorKey = transaction.createdBy.id;
-        const supervisorName = `${transaction.createdBy.firstName} ${transaction.createdBy.lastName}`;
-
-        if (!supervisorSalesMap.has(supervisorKey)) {
-          supervisorSalesMap.set(supervisorKey, {
-            supervisorId: transaction.createdBy.id,
-            supervisorName,
-            totalAddOnRevenue: 0,
-            addOnCount: 0,
-          });
-        }
-
-        const supervisorEntry = supervisorSalesMap.get(supervisorKey);
-        const addOnRevenue = transaction.addOns.reduce((sum, addOn) => sum + addOn.price, 0);
-
-        supervisorEntry.totalAddOnRevenue += addOnRevenue;
-        supervisorEntry.addOnCount += transaction.addOns.length;
-      }
-    }
-
-    const supervisorSales = Array.from(supervisorSalesMap.values()).sort(
-      (a, b) => b.totalAddOnRevenue - a.totalAddOnRevenue,
+    // Get user sales for the day using SalesRecordService
+    const salesSummary = await this.salesRecordService.getDailySalesSummary(
+      reportDate,
     );
+
+    // Map to UserSalesReport format
+    const userSales: UserSalesReport[] = salesSummary.map((summary) => {
+      // Calculate 5% commission on add-on sales
+      const addOnCommission = summary.addOns.total * 0.05;
+
+      return {
+        userId: summary.sellerId,
+        userName: summary.sellerName,
+        userRole: summary.sellerRole,
+        services: summary.services,
+        addOns: summary.addOns,
+        addOnCommission,
+      };
+    });
 
     return {
       date,
       technicianShifts,
       cashSummary,
-      supervisorSales,
+      userSales,
       generatedAt: new Date().toISOString(),
     };
   }
 
-  private calculateDuration(startTime: Date | null, endTime: Date | null): { minutes: number } {
+  private calculateDuration(
+    startTime: Date | null,
+    endTime: Date | null,
+  ): { minutes: number } {
     if (!startTime) return { minutes: 0 };
 
     const end = endTime || new Date();

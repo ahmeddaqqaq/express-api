@@ -251,4 +251,31 @@ export class AuthController {
   async getCurrentUser(@User() user: any): Promise<UserInfoResponse> {
     return this.authService.getUserInfo(user.userId);
   }
+
+  @Get('supervisors')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('auth')
+  @ApiOperation({ summary: 'Get all users with supervisor role' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Supervisor users retrieved successfully',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          userId: { type: 'string' },
+          name: { type: 'string' },
+          mobileNumber: { type: 'string' },
+          role: { type: 'string', enum: ['SUPERVISOR'] },
+          isActive: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getSupervisors() {
+    return this.authService.getSupervisorUsers();
+  }
 }

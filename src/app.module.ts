@@ -14,13 +14,13 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { S3Module } from './s3/s3.module';
 import { ImageModule } from './image/image.module';
-import { SupervisorModule } from './supervisor/supervisor.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { SeederModule } from './seeder/seeder.module';
 import { IntegrationModule } from './integration/integration.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SalesModule } from './sales/sales.module';
+import { SalesRecordModule } from './sales-record/sales-record.module';
 import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
@@ -38,13 +38,13 @@ import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
     StatisticsModule,
     S3Module,
     ImageModule,
-    SupervisorModule,
     AuditLogModule,
     AuthModule,
     SeederModule,
     IntegrationModule,
     SchedulerModule,
     SalesModule,
+    SalesRecordModule,
   ],
   controllers: [AppController],
   providers: [AppService],

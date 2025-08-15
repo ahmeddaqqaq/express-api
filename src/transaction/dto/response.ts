@@ -6,7 +6,7 @@ import { CustomerResponse } from 'src/customer/responses';
 import { ImageResponse } from 'src/image/response';
 import { InvoiceResponse } from 'src/invoice/dto/response';
 import { ServiceResponse } from 'src/service/dto/response';
-import { SupervisorResponse } from 'src/supervisor/dto/response';
+import { UserInfoResponse } from 'src/auth/dto/user-info.dto';
 import { TechnicianResponse } from 'src/technician/dto/response';
 
 export class TransactionResponse {
@@ -43,10 +43,10 @@ export class TransactionResponse {
   @ApiProperty({ type: () => [ImageResponse] })
   images: [ImageResponse];
 
-  @ApiProperty({ type: () => SupervisorResponse })
-  createdBy: SupervisorResponse;
+  @ApiProperty({ type: () => UserInfoResponse })
+  createdByUser: UserInfoResponse;
 
-  @ApiProperty({ 
+  @ApiProperty({
     type: 'array',
     items: {
       type: 'object',
@@ -64,31 +64,6 @@ export class TransactionResponse {
     },
   })
   assignments: any[];
-
-  @ApiProperty({ 
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        id: { type: 'string' },
-        transactionId: { type: 'string' },
-        salesId: { type: 'string' },
-        addOnNames: { type: 'array', items: { type: 'string' } },
-        assignedAt: { type: 'string', format: 'date-time' },
-        sales: { 
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            firstName: { type: 'string' },
-            lastName: { type: 'string' },
-            mobileNumber: { type: 'string' },
-            isActive: { type: 'boolean' },
-          }
-        },
-      },
-    },
-  })
-  salesAssignments: any[];
 
   @ApiProperty()
   deliverTime: string;

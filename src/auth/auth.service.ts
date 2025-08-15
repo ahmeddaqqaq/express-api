@@ -154,4 +154,33 @@ export class AuthService {
       createdAt: user.createdAt,
     };
   }
+
+  async getSupervisorUsers() {
+    const supervisors = await this.prisma.user.findMany({
+      where: { 
+        role: UserRole.SUPERVISOR,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        mobileNumber: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return supervisors.map(user => ({
+      userId: user.id,
+      name: user.name,
+      mobileNumber: user.mobileNumber,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+    }));
+  }
 }

@@ -33,7 +33,6 @@ import { Roles } from 'src/auth/roles.decorator';
 import { User } from 'src/auth/user.decorator';
 import { TransactionStatus } from '@prisma/client';
 import { AssignTechnicianToPhaseDto } from './dto/update-transaction-dto';
-import { AssignSalesToAddonsDto } from './dto/assign-sales-to-addons.dto';
 
 @ApiTags('Transaction')
 @Controller('transaction')
@@ -61,7 +60,6 @@ export class TransactionController {
     },
   })
   async create(@Body() createTransactionDto: CreateTransactionDto, @User() user: any) {
-    console.log('Create transaction - user:', user);
     return await this.transactionService.create(createTransactionDto, user?.userId);
   }
 
@@ -369,17 +367,17 @@ export class TransactionController {
   }
 
   @ApiOperation({ 
-    summary: 'Edit scheduled transaction details',
-    description: 'Edit service, addons, delivery time, and notes for transactions in scheduled status only'
+    summary: 'Edit transaction details',
+    description: 'Edit transaction details. For scheduled transactions: all fields can be edited. For other statuses: only notes, add-ons, and sales person can be edited.'
   })
   @ApiResponse({
     status: 200,
-    description: 'Scheduled transaction edited successfully',
+    description: 'Transaction edited successfully',
     type: TransactionResponse,
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - transaction not in scheduled status or invalid data',
+    description: 'Bad request - trying to edit restricted fields for non-scheduled transaction or invalid data',
     schema: {
       type: 'object',
       properties: {
@@ -402,8 +400,8 @@ export class TransactionController {
     },
   })
   @Patch('edit-scheduled')
-  async editScheduled(@Body() editDto: EditScheduledTransactionDto) {
-    return await this.transactionService.editScheduledTransaction(editDto);
+  async editScheduled(@Body() editDto: EditScheduledTransactionDto, @User() user: any) {
+    return await this.transactionService.editScheduledTransaction(editDto, user?.userId);
   }
 
   @ApiOperation({ 
@@ -517,7 +515,6 @@ export class TransactionController {
     @UploadedFile() file: Express.Multer.File,
     @User() user: any,
   ) {
-    console.log('User object in uploadImage:', user);
     return this.transactionService.uploadTransactionImages(
       transactionId,
       [file],
@@ -684,25 +681,4 @@ export class TransactionController {
     return this.transactionService.getPhaseAssignments(transactionId, phase);
   }
 
-  @Post('assign-sales-to-addons')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Assign sales person to transaction addons' })
-  @ApiResponse({
-    status: 201,
-    description: 'Sales person assigned to addons successfully',
-  })
-  assignSalesToAddons(@Body() assignSalesDto: AssignSalesToAddonsDto) {
-    return this.transactionService.assignSalesToAddons(assignSalesDto);
-  }
-
-  @Get(':id/sales-assignments')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Get sales assignments for a transaction' })
-  @ApiResponse({
-    status: 200,
-    description: 'Sales assignments retrieved successfully',
-  })
-  getSalesAssignments(@Param('id', ParseUUIDPipe) transactionId: string) {
-    return this.transactionService.getSalesAssignments(transactionId);
-  }
 }

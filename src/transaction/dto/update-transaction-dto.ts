@@ -28,13 +28,13 @@ export class UpdateTransactionDto {
 
 export class EditScheduledTransactionDto {
   @ApiProperty({
-    description: 'Transaction ID to edit (must be in scheduled status)'
+    description: 'Transaction ID to edit (works for all statuses with restrictions)'
   })
   @IsUUID()
   id: string;
 
   @ApiPropertyOptional({
-    description: 'New service ID',
+    description: 'New service ID (only allowed for scheduled transactions)',
   })
   @IsOptional()
   @IsUUID()
@@ -42,7 +42,7 @@ export class EditScheduledTransactionDto {
 
   @ApiPropertyOptional({
     type: [String],
-    description: 'Array of addon IDs to replace current addons',
+    description: 'Array of addon IDs to replace current addons (allowed for all statuses)',
   })
   @IsOptional()
   @IsArray()
@@ -50,18 +50,25 @@ export class EditScheduledTransactionDto {
   addOnsIds?: string[];
 
   @ApiPropertyOptional({
-    description: 'Updated delivery time',
+    description: 'Updated delivery time (only allowed for scheduled transactions)',
   })
   @IsOptional()
   @IsString()
   deliverTime?: string;
 
   @ApiPropertyOptional({
-    description: 'Updated notes',
+    description: 'Updated notes (allowed for all statuses)',
   })
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sales person ID for addon sales tracking (allowed for all statuses, required when adding new addons)',
+  })
+  @IsOptional()
+  @IsUUID()
+  salesPersonId?: string;
 }
 
 export class CancelTransactionDto {

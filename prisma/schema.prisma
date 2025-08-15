@@ -20,6 +20,7 @@ model user {
   // Relations
   uploadedImages Image[]
   createdTransactions Transaction[] @relation("CreatedByUser")
+  salesRecords SalesRecord[]
 }
 
 model Image {
@@ -110,13 +111,11 @@ model Transaction {
   OTP          String?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
-  createdBy        Supervisor? @relation("CreatedBy", fields: [createdById], references: [id])
-  createdById      String?
   createdByUser    user?       @relation("CreatedByUser", fields: [createdByUserId], references: [id])
   createdByUserId  String?
   auditLogs    AuditLog[]
   assignments  TechnicianAssignment[]
-  salesAssignments TransactionAddonSales[]
+  salesRecords SalesRecord[]
   posOrder     PosOrder?
 }
 
@@ -193,38 +192,39 @@ model Invoice {
   updatedAt     DateTime    @updatedAt
 }
 
-model Supervisor {
-  id                  String        @id @default(uuid())
-  firstName           String
-  lastName            String
-  createdTransactions Transaction[] @relation("CreatedBy")
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-}
-
 model Sales {
   id                  String                 @id @default(uuid())
   firstName           String
   lastName            String
   mobileNumber        String?                @unique
   isActive            Boolean                @default(true)
-  addonsAssignments   TransactionAddonSales[]
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
+  salesRecords        SalesRecord[]
 }
 
-model TransactionAddonSales {
+
+model SalesRecord {
   id            String      @id @default(uuid())
   transaction   Transaction @relation(fields: [transactionId], references: [id])
   transactionId String
-  sales         Sales       @relation(fields: [salesId], references: [id])
-  salesId       String
-  addOnNames    String[]    // Store addon names for this assignment
-  assignedAt    DateTime    @default(now())
+  seller        user?       @relation(fields: [sellerId], references: [id])
+  sellerId      String?
+  salesPerson   Sales?      @relation(fields: [salesPersonId], references: [id])
+  salesPersonId String?
+  saleType      SaleType    // SERVICE or ADDON
+  itemId        String      // serviceId or addOnId
+  itemName      String      // service name or add-on name
+  price         Float       // price at time of sale
+  quantity      Int         @default(1) // for add-ons that might have quantity
+  soldAt        DateTime    @default(now())
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  
-  @@unique([transactionId, salesId])
+
+  @@index([transactionId])
+  @@index([sellerId, soldAt])
+  @@index([salesPersonId, soldAt])
+  @@index([saleType, soldAt])
 }
 
 model AuditLog {
@@ -278,6 +278,11 @@ enum TransactionStatus {
 enum UserRole {
   ADMIN
   SUPERVISOR
+}
+
+enum SaleType {
+  SERVICE
+  ADDON
 }
 
 enum CarType {

@@ -5,9 +5,10 @@ import { S3Module } from '../s3/s3.module';
 import { TransactionController } from './transaction.controller';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { IntegrationModule } from '../integration/integration.module';
+import { SalesRecordModule } from '../sales-record/sales-record.module';
 
 @Module({
-  imports: [PrismaModule, S3Module, AuditLogModule, IntegrationModule],
+  imports: [PrismaModule, S3Module, AuditLogModule, IntegrationModule, SalesRecordModule],
   controllers: [TransactionController],
   providers: [TransactionService],
   exports: [TransactionService],

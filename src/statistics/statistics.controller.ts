@@ -152,14 +152,14 @@ export class StatisticsController {
 
   @ApiResponse({
     status: 200,
-    description: 'Returns supervisor add-on sales statistics',
+    description: 'Returns user add-on sales statistics',
     schema: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          supervisorId: { type: 'string' },
-          supervisorName: { type: 'string' },
+          userId: { type: 'string' },
+          userName: { type: 'string' },
           totalAddOnRevenue: { type: 'number' },
           addOnCount: { type: 'number' },
         },
@@ -177,14 +177,14 @@ export class StatisticsController {
       },
     },
   })
-  @Get('supervisorAddOnSales')
-  async getSupervisorAddsOnSell(@Query() filter: StatsFilterDto) {
-    return await this.statisticsService.getSupervisorAddsOnSell(filter);
+  @Get('userAddOnSales')
+  async getUserAddOnSales(@Query() filter: StatsFilterDto) {
+    return await this.statisticsService.getUserAddOnSales(filter);
   }
 
   @ApiResponse({
     status: 200,
-    description: 'Returns comprehensive daily report with technician shifts, cash summary, and supervisor sales',
+    description: 'Returns comprehensive daily report with technician shifts, cash summary, and user sales',
     type: DailyReportResponseDto,
   })
   @ApiResponse({
@@ -209,4 +209,72 @@ export class StatisticsController {
   async getDailyReport(@Query('date') date: string) {
     return await this.statisticsService.getDailyReport(date);
   }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns detailed sales report showing who sold what',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          transactionId: { type: 'string' },
+          saleType: { type: 'string', enum: ['SERVICE', 'ADDON'] },
+          itemName: { type: 'string' },
+          price: { type: 'number' },
+          quantity: { type: 'number' },
+          totalAmount: { type: 'number' },
+          soldAt: { type: 'string', format: 'date-time' },
+          sellerType: { type: 'string', enum: ['USER', 'SALES_PERSON'] },
+          sellerName: { type: 'string' },
+          sellerRole: { type: 'string' },
+          transactionStatus: { type: 'string' },
+        },
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Start date for the report (YYYY-MM-DD)',
+    example: '2023-12-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'End date for the report (YYYY-MM-DD)',
+    example: '2023-12-31',
+  })
+  @ApiQuery({
+    name: 'includeIncomplete',
+    required: false,
+    type: Boolean,
+    description: 'Include sales from incomplete transactions',
+    example: false,
+  })
+  @Get('detailedSalesReport')
+  async getDetailedSalesReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('includeIncomplete') includeIncomplete?: boolean,
+  ) {
+    // Use DateUtils to ensure business day boundaries
+    const { DateUtils } = require('../utils/date-utils');
+    const start = startDate 
+      ? DateUtils.getStartOfDayUTC3(new Date(startDate))
+      : DateUtils.getStartOfDayUTC3(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // Default: 30 days ago
+    const end = endDate 
+      ? DateUtils.getEndOfDayUTC3(new Date(endDate))
+      : DateUtils.getEndOfDayUTC3(new Date()); // Default: today
+    
+    return await this.statisticsService.salesRecordService.getDetailedSalesReport(
+      start,
+      end,
+      includeIncomplete || false
+    );
+  }
+
 }

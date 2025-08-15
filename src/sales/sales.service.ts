@@ -93,13 +93,6 @@ export class SalesService {
   async findOne(id: string) {
     const sales = await this.prisma.sales.findUnique({
       where: { id },
-      include: {
-        addonsAssignments: {
-          include: {
-            transaction: true,
-          },
-        },
-      },
     });
 
     if (!sales) {
@@ -145,19 +138,10 @@ export class SalesService {
   async delete(id: string) {
     const sales = await this.prisma.sales.findUnique({
       where: { id },
-      include: {
-        addonsAssignments: true,
-      },
     });
 
     if (!sales) {
       throw new NotFoundException('Sales person not found. Please verify the ID and try again.');
-    }
-
-    if (sales.addonsAssignments.length > 0) {
-      throw new ConflictException(
-        'Cannot delete sales person with active addon assignments. Please reassign or remove assignments first.',
-      );
     }
 
     return this.prisma.sales.delete({
