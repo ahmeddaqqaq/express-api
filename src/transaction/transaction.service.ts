@@ -310,15 +310,16 @@ export class TransactionService {
       where,
       include: {
         car: { include: { brand: true, model: true } },
+        customer: true,
         assignments: {
           include: {
             technician: true,
           },
         },
-        customer: true,
-        createdByUser: true,
         service: true,
+        createdByUser: true,
         addOns: true,
+        invoice: true,
         images: {
           include: {
             uploadedBy: {
@@ -364,7 +365,9 @@ export class TransactionService {
           },
         },
         service: true,
+        createdByUser: true,
         addOns: true,
+        invoice: true,
         images: {
           include: {
             uploadedBy: {
@@ -422,7 +425,9 @@ export class TransactionService {
           },
         },
         service: true,
+        createdByUser: true,
         addOns: true,
+        invoice: true,
         images: {
           include: {
             uploadedBy: {
@@ -478,7 +483,9 @@ export class TransactionService {
           },
         },
         service: true,
+        createdByUser: true,
         addOns: true,
+        invoice: true,
         images: {
           include: {
             uploadedBy: {
@@ -534,6 +541,7 @@ export class TransactionService {
           },
         },
         service: true,
+        createdByUser: true,
         addOns: true,
         invoice: true,
         images: {
