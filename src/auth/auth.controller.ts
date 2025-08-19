@@ -1,12 +1,30 @@
-import { Controller, Post, Body, Res, Req, UnauthorizedException, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  Req,
+  UnauthorizedException,
+  Get,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SigninDto } from './dto/login.dto';
 import { Response, Request } from 'express';
 import { JwtAuthGuard } from './auth.guard';
 import { User } from './user.decorator';
 import { UserInfoResponse } from './dto/user-info.dto';
+import { DeleteUserDto } from './dto/delete-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { Put, Delete } from '@nestjs/common';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -14,12 +32,13 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('signup')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Register a new user',
-    description: 'Create a new user account with mobile number, password, and role'
+    description:
+      'Create a new user account with mobile number, password, and role',
   })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'User registered successfully',
     schema: {
       type: 'object',
@@ -29,8 +48,8 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ 
-    status: 409, 
+  @ApiResponse({
+    status: 409,
     description: 'Mobile number already in use',
     schema: {
       type: 'object',
@@ -41,8 +60,8 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ 
-    status: 400, 
+  @ApiResponse({
+    status: 400,
     description: 'Validation failed',
     schema: {
       type: 'object',
@@ -84,23 +103,27 @@ export class AuthController {
   }
 
   @Post('signin')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Sign in user',
-    description: 'Authenticate user with mobile number and password. Sets httpOnly cookies for tokens.'
+    description:
+      'Authenticate user with mobile number and password. Sets httpOnly cookies for tokens.',
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User signed in successfully',
     schema: {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        access_token: { type: 'string', description: 'JWT access token (also set as httpOnly cookie)' },
+        access_token: {
+          type: 'string',
+          description: 'JWT access token (also set as httpOnly cookie)',
+        },
       },
     },
   })
-  @ApiResponse({ 
-    status: 401, 
+  @ApiResponse({
+    status: 401,
     description: 'Invalid credentials',
     schema: {
       type: 'object',
@@ -142,23 +165,27 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Refresh access token',
-    description: 'Generate new access and refresh tokens using existing refresh token from cookies. This endpoint is also automatically called by middleware when refresh token is present without access token.'
+    description:
+      'Generate new access and refresh tokens using existing refresh token from cookies. This endpoint is also automatically called by middleware when refresh token is present without access token.',
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Tokens refreshed successfully',
     schema: {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        access_token: { type: 'string', description: 'New JWT access token (also set as httpOnly cookie)' },
+        access_token: {
+          type: 'string',
+          description: 'New JWT access token (also set as httpOnly cookie)',
+        },
       },
     },
   })
-  @ApiResponse({ 
-    status: 401, 
+  @ApiResponse({
+    status: 401,
     description: 'Refresh token not found or invalid',
     schema: {
       type: 'object',
@@ -174,7 +201,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const refreshToken = req.cookies?.refresh_token;
-    
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
@@ -206,12 +233,12 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Logout user',
-    description: 'Clear authentication cookies and sign out the user'
+    description: 'Clear authentication cookies and sign out the user',
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User logged out successfully',
     schema: {
       type: 'object',
@@ -242,22 +269,92 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('auth')
   @ApiOperation({ summary: 'Get current user information' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User information retrieved successfully',
-    type: UserInfoResponse 
+    type: UserInfoResponse,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getCurrentUser(@User() user: any): Promise<UserInfoResponse> {
     return this.authService.getUserInfo(user.userId);
   }
 
+  @Delete('delete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('auth')
+  @ApiOperation({ summary: 'Delete a user (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'User deactivated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Admin role required' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async deleteUser(
+    @Body() deleteUserDto: DeleteUserDto,
+    @User() user: any,
+  ) {
+    return this.authService.deleteUser(deleteUserDto, user.userId);
+  }
+
+  @Post('reset-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('auth')
+  @ApiOperation({ 
+    summary: 'Reset user password (Admin only)',
+    description: 'Allows an admin to reset a user\'s password by providing their mobile number and new password'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Admin role required' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+    @User() user: any,
+  ) {
+    return this.authService.resetPassword(resetPasswordDto, user.userId);
+  }
+
+  @Put('update')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('auth')
+  @ApiOperation({ 
+    summary: 'Update current user profile',
+    description: 'Allows a user to update their name and/or mobile number'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: UserInfoResponse,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 409, description: 'Mobile number already in use' })
+  async updateUser(
+    @Body() updateUserDto: UpdateUserDto,
+    @User() user: any,
+  ): Promise<UserInfoResponse> {
+    return this.authService.updateUser(updateUserDto, user.userId);
+  }
+
   @Get('supervisors')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('auth')
   @ApiOperation({ summary: 'Get all users with supervisor role' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Supervisor users retrieved successfully',
     schema: {
       type: 'array',

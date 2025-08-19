@@ -11,6 +11,9 @@ import { SignupDto } from './dto/signup.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SigninDto } from './dto/login.dto';
 import { UserRole } from '@prisma/client';
+import { DeleteUserDto } from './dto/delete-user.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -56,7 +59,10 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({
       where: { mobileNumber: dto.mobileNumber },
     });
-    if (existing) throw new ConflictException(`Mobile number ${dto.mobileNumber} is already registered. Please use a different mobile number or sign in with your existing account.`);
+    if (existing)
+      throw new ConflictException(
+        `Mobile number ${dto.mobileNumber} is already registered. Please use a different mobile number or sign in with your existing account.`,
+      );
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -74,14 +80,128 @@ export class AuthService {
 
   async signin(dto: SigninDto) {
     const user = await this.prisma.user.findUnique({
-      where: { mobileNumber: dto.mobileNumber },
+      where: { mobileNumber: dto.mobileNumber, isActive: true },
     });
 
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Invalid mobile number or password. Please check your credentials and try again.');
+      throw new UnauthorizedException(
+        'Invalid mobile number or password. Please check your credentials and try again.',
+      );
     }
 
     return this.signTokens(user.id, user.role);
+  }
+
+  async deleteUser(dto: DeleteUserDto, currentUserId: string) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: currentUserId },
+    });
+
+    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+      throw new UnauthorizedException('Only administrators can delete users.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { mobileNumber: dto.mobileNumber },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException(
+        'User not found. Please check the mobile number and try again.',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { mobileNumber: dto.mobileNumber },
+      data: { isActive: false },
+    });
+
+    return { message: 'User deleted successfully' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto, currentUserId: string) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: currentUserId },
+    });
+
+    if (!currentUser || currentUser.role !== UserRole.ADMIN) {
+      throw new UnauthorizedException(
+        'Only administrators can reset user passwords.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { mobileNumber: dto.mobileNumber },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException(
+        'User not found. Please check the mobile number and try again.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { mobileNumber: dto.mobileNumber },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password reset successfully' };
+  }
+
+  async updateUser(dto: UpdateUserDto, currentUserId: string) {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+    });
+
+    if (!targetUser) {
+      throw new UnauthorizedException(
+        'User not found. Please check the user ID and try again.',
+      );
+    }
+
+    const updateData: any = {};
+
+    if (dto.name) {
+      updateData.name = dto.name;
+    }
+
+    if (dto.mobileNumber) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { mobileNumber: dto.mobileNumber },
+      });
+
+      if (existingUser && existingUser.id !== dto.userId) {
+        throw new ConflictException(
+          `Mobile number ${dto.mobileNumber} is already in use by another account.`,
+        );
+      }
+
+      updateData.mobileNumber = dto.mobileNumber;
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: dto.userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        mobileNumber: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      userId: updatedUser.id,
+      name: updatedUser.name,
+      mobileNumber: updatedUser.mobileNumber,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      createdAt: updatedUser.createdAt,
+    };
   }
 
   async signOut() {
@@ -90,7 +210,7 @@ export class AuthService {
 
   private async signTokens(userId: string, role: UserRole) {
     const payload = { sub: userId, role };
-    
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
@@ -119,12 +239,16 @@ export class AuthService {
       });
 
       if (!user || !user.isActive) {
-        throw new UnauthorizedException('Your account was not found or has been deactivated. Please contact an administrator for assistance.');
+        throw new UnauthorizedException(
+          'Your account was not found or has been deactivated. Please contact an administrator for assistance.',
+        );
       }
 
       return this.signTokens(user.id, user.role);
     } catch (error) {
-      throw new UnauthorizedException('Your session has expired. Please sign in again to continue.');
+      throw new UnauthorizedException(
+        'Your session has expired. Please sign in again to continue.',
+      );
     }
   }
 
@@ -142,7 +266,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User account not found. Please verify your credentials.');
+      throw new UnauthorizedException(
+        'User account not found. Please verify your credentials.',
+      );
     }
 
     return {
@@ -157,7 +283,7 @@ export class AuthService {
 
   async getSupervisorUsers() {
     const supervisors = await this.prisma.user.findMany({
-      where: { 
+      where: {
         role: UserRole.SUPERVISOR,
         isActive: true,
       },
@@ -174,7 +300,7 @@ export class AuthService {
       },
     });
 
-    return supervisors.map(user => ({
+    return supervisors.map((user) => ({
       userId: user.id,
       name: user.name,
       mobileNumber: user.mobileNumber,

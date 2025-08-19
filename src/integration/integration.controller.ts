@@ -18,6 +18,24 @@ export class IntegrationController {
   }
 
   @Post('mark-paid/:orderId')
+  @ApiOperation({ summary: 'Mark transaction as paid by order number' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction marked as paid successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Transaction is already marked as paid',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Order not found',
+  })
+  async markTransactionAsPaid(@Param('orderId', ParseIntPipe) orderId: number) {
+    return this.integrationService.markTransactionAsPaid(orderId);
+  }
+
+  @Post('mark-pulled/:orderId')
   @ApiOperation({ summary: 'Mark transaction as pulled by order number' })
   @ApiResponse({
     status: 200,
@@ -31,7 +49,7 @@ export class IntegrationController {
     status: 404,
     description: 'Order not found',
   })
-  async markTransactionAsPaid(@Param('orderId', ParseIntPipe) orderId: number) {
-    return this.integrationService.markTransactionAsPaid(orderId);
+  async markTransactionAsPulled(@Param('orderId', ParseIntPipe) orderId: number) {
+    return this.integrationService.markTransactionAsPulled(orderId);
   }
 }

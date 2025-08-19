@@ -222,4 +222,53 @@ export class IntegrationService {
       transaction: updatedTransaction,
     };
   }
+
+  async markTransactionAsPulled(orderId: number) {
+    // Find the POS order by order number in the data JSON field
+    const posOrder = await this.prisma.posOrder.findFirst({
+      where: {
+        data: {
+          path: ['orderNumber'],
+          equals: orderId,
+        },
+      },
+      include: {
+        transaction: true,
+      },
+    });
+
+    if (!posOrder) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const transaction = posOrder.transaction;
+
+    // Check if already pulled
+    if (transaction.isPulled) {
+      throw new BadRequestException('Transaction is already marked as pulled');
+    }
+
+    // Update transaction to mark as pulled
+    const updatedTransaction = await this.prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { isPulled: true },
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        service: true,
+        addOns: true,
+        createdByUser: true,
+      },
+    });
+
+    return {
+      message: 'Transaction marked as pulled successfully',
+      transaction: updatedTransaction,
+    };
+  }
 }

@@ -20,6 +20,9 @@ export class TransactionResponse {
   isPaid: boolean;
 
   @ApiProperty()
+  isPulled: boolean;
+
+  @ApiProperty()
   customerId: string;
 
   @ApiProperty()
