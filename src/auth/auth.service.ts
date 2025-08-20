@@ -111,10 +111,15 @@ export class AuthService {
       );
     }
 
-    await this.prisma.user.update({
-      where: { mobileNumber: dto.mobileNumber },
-      data: { isActive: false },
-    });
+    await this.prisma.user
+      .delete({
+        where: { mobileNumber: dto.mobileNumber },
+      })
+      .catch((error) => {
+        throw new ConflictException(
+          `Failed to delete user with mobile number ${dto.mobileNumber}. Please try again later.`,
+        );
+      });
 
     return { message: 'User deleted successfully' };
   }
