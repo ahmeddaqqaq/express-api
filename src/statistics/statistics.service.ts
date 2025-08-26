@@ -608,13 +608,15 @@ export class StatisticsService {
     const endOfDay = this.getEndOfDayUTC3(reportDate);
 
     // Get all technicians with their shifts for the specific date
-    // Since shifts are stored with calendar date (not timestamp),
-    // we need to use the business date (adjusted for 1am cutoff)
+    // IMPORTANT: When shifts are created, they use getStartOfDayUTC3() which returns
+    // the business day start time (e.g., 2025-08-25T22:00:00.000Z for Aug 26 business day).
+    // This gets stored in a Date field as 2025-08-25T00:00:00.000Z (one day earlier).
     // 
-    // IMPORTANT: Shifts are stored as UTC dates (YYYY-MM-DDTHH:mm:ss.sssZ)
-    // When user requests "2025-08-26", we need to create a proper UTC date
-    // The issue was that setHours() operates in local timezone, causing date shifts
-    const businessDate = new Date(date + 'T00:00:00.000Z');
+    // So when user requests "2025-08-26", we need to query for "2025-08-25" in the database
+    // to get the shifts that were created for the August 26 business day.
+    const requestedDate = new Date(date + 'T00:00:00.000Z');
+    const businessDate = new Date(requestedDate);
+    businessDate.setUTCDate(businessDate.getUTCDate() - 1); // Go back one day to match how shifts are stored
 
     const technicians = await this.prisma.technician.findMany({
       include: {
