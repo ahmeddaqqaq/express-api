@@ -611,7 +611,7 @@ export class StatisticsService {
     // IMPORTANT: When shifts are created, they use getStartOfDayUTC3() which returns
     // the business day start time (e.g., 2025-08-25T22:00:00.000Z for Aug 26 business day).
     // This gets stored in a Date field as 2025-08-25T00:00:00.000Z (one day earlier).
-    // 
+    //
     // So when user requests "2025-08-26", we need to query for "2025-08-25" in the database
     // to get the shifts that were created for the August 26 business day.
     const requestedDate = new Date(date + 'T00:00:00.000Z');
@@ -668,13 +668,28 @@ export class StatisticsService {
 
         // Calculate overtime compensation (overtime minutes * 0.025 per minute)
         const overtimeCompensation = overtimeTime.minutes * 0.025;
-
         // Format shift start and end times
         const shiftStartTime = shift.startTime
-          ? shift.startTime.toTimeString().slice(0, 8)
+          ? shift.startTime
+              .toLocaleTimeString('en-US', {
+                timeZone: 'Asia/Amman',
+                hour12: false, // Set to false if you prefer 24-hour format
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })
+              .slice(0, 8)
           : '00:00:00';
         const shiftEndTime = shift.endTime
-          ? shift.endTime.toTimeString().slice(0, 8)
+          ? shift.endTime
+              .toLocaleTimeString('en-US', {
+                timeZone: 'Asia/Amman',
+                hour12: false, // Set to false if you prefer 24-hour format
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })
+              .slice(0, 8)
           : '00:00:00';
 
         return {
