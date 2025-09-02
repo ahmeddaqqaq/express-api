@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Param } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
 import { ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { CardStatsResponse, CompletionRatioResponse } from './models/response';
@@ -184,7 +184,8 @@ export class StatisticsController {
 
   @ApiResponse({
     status: 200,
-    description: 'Returns comprehensive daily report with technician shifts, cash summary, and user sales',
+    description:
+      'Returns comprehensive daily report with technician shifts, cash summary, and user sales',
     type: DailyReportResponseDto,
   })
   @ApiResponse({
@@ -263,18 +264,50 @@ export class StatisticsController {
   ) {
     // Use DateUtils to ensure business day boundaries
     const { DateUtils } = require('../utils/date-utils');
-    const start = startDate 
+    const start = startDate
       ? DateUtils.getStartOfDayUTC3(new Date(startDate))
-      : DateUtils.getStartOfDayUTC3(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // Default: 30 days ago
-    const end = endDate 
+      : DateUtils.getStartOfDayUTC3(
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        ); // Default: 30 days ago
+    const end = endDate
       ? DateUtils.getEndOfDayUTC3(new Date(endDate))
       : DateUtils.getEndOfDayUTC3(new Date()); // Default: today
-    
+
     return await this.statisticsService.salesRecordService.getDetailedSalesReport(
       start,
       end,
-      includeIncomplete || false
+      includeIncomplete || false,
     );
   }
 
+  @ApiResponse({
+    status: 200,
+    description: 'Returns number of completed visits for a specific customer',
+    schema: {
+      type: 'object',
+      properties: {
+        customerId: { type: 'string' },
+        visitCount: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('customer/:customerId/visits')
+  async getNumberOfVisitsPerCustomer(@Param('customerId') customerId: string) {
+    const count = await this.statisticsService.numberOfVisitsPerCustomer(customerId);
+    return {
+      customerId,
+      visitCount: count,
+    };
+  }
 }

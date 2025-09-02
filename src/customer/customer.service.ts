@@ -92,7 +92,7 @@ export class CustomerService {
         SELECT id FROM "Customer" 
         WHERE LOWER(CONCAT("fName", ' ', "lName")) LIKE ${`%${searchTerm}%`}
       `;
-      
+
       if (fullNameCondition.length > 0) {
         const matchingIds = fullNameCondition.map((row) => row.id);
         where.OR.push({
@@ -133,7 +133,9 @@ export class CustomerService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
+      throw new NotFoundException(
+        'Customer not found. Please verify the customer ID and try again.',
+      );
     }
 
     return customer;
@@ -145,7 +147,9 @@ export class CustomerService {
     });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
+      throw new NotFoundException(
+        'Customer not found. Please verify the customer ID and try again.',
+      );
     }
 
     await this.prisma.customer.update({
@@ -165,7 +169,9 @@ export class CustomerService {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
+      throw new NotFoundException(
+        'Customer not found. Please verify the customer ID and try again.',
+      );
     }
 
     const updatedCustomer = await this.prisma.customer.update({
@@ -183,7 +189,9 @@ export class CustomerService {
     const customer = await this.prisma.customer.findUnique({ where: { id } });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found. Please verify the customer ID and try again.');
+      throw new NotFoundException(
+        'Customer not found. Please verify the customer ID and try again.',
+      );
     }
 
     await this.prisma.customer.delete({

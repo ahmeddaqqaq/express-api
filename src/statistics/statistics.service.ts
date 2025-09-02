@@ -823,4 +823,14 @@ export class StatisticsService {
       .toString()
       .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
+
+  async numberOfVisitsPerCustomer(customerId: string) {
+    const count = await this.prisma.transaction.count({
+      where: {
+        customerId,
+        status: 'completed',
+      },
+    });
+    return count;
+  }
 }
