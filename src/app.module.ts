@@ -21,6 +21,7 @@ import { IntegrationModule } from './integration/integration.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { SalesModule } from './sales/sales.module';
 import { SalesRecordModule } from './sales-record/sales-record.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
@@ -45,6 +46,7 @@ import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
     SchedulerModule,
     SalesModule,
     SalesRecordModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

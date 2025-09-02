@@ -21,6 +21,7 @@ model user {
   uploadedImages Image[]
   createdTransactions Transaction[] @relation("CreatedByUser")
   salesRecords SalesRecord[]
+  usageRecords SubscriptionUsageRecord[] @relation("ServiceUsedBy")
 }
 
 model Image {
@@ -50,6 +51,7 @@ model Customer {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  subscriptions CustomerSubscription[]
 }
 
 model Car {
@@ -66,6 +68,7 @@ model Car {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  subscriptions CustomerSubscription[]
 }
 
 model Brand {
@@ -127,6 +130,8 @@ model Service {
   updatedAt    DateTime       @updatedAt
   transactions Transaction[]
   prices       ServicePrice[]
+  subscriptionServices SubscriptionService[]
+  usageRecords SubscriptionUsageRecord[]
 }
 
 model ServicePrice {
@@ -265,6 +270,102 @@ model TechnicianAssignment {
   updatedAt     DateTime          @updatedAt
 
   @@unique([technicianId, transactionId, phase])
+}
+
+// QR Code model for managing QR codes
+model QRCode {
+  id               String                 @id @default(uuid())
+  code             String                 @unique // 16 character unique code
+  isActive         Boolean                @default(false) // false until activated with subscription
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  
+  // Relations
+  customerSubscriptions CustomerSubscription[]
+}
+
+// Subscription Template model
+model Subscription {
+  id                String                 @id @default(uuid())
+  name              String
+  description       String?
+  endDate           DateTime?              // Optional validation: subscription end date
+  maxUsesPerService Int?                   // Optional validation: max uses per service
+  isActive          Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  
+  // Relations
+  subscriptionServices  SubscriptionService[]
+  subscriptionPrices    SubscriptionPrice[]
+  customerSubscriptions CustomerSubscription[]
+}
+
+// Services included in a subscription with usage count
+model SubscriptionService {
+  id             String       @id @default(uuid())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  service        Service      @relation(fields: [serviceId], references: [id])
+  serviceId      String
+  usageCount     Int          // Number of times this service can be used
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  @@unique([subscriptionId, serviceId])
+}
+
+// Subscription pricing per car type
+model SubscriptionPrice {
+  id             String       @id @default(uuid())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  carType        CarType
+  price          Float
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  @@unique([subscriptionId, carType])
+}
+
+// Customer's purchased subscriptions
+model CustomerSubscription {
+  id               String                      @id @default(uuid())
+  customer         Customer                    @relation(fields: [customerId], references: [id])
+  customerId       String
+  car              Car                         @relation(fields: [carId], references: [id])
+  carId            String
+  subscription     Subscription                @relation(fields: [subscriptionId], references: [id])
+  subscriptionId   String
+  qrCode           QRCode?                     @relation(fields: [qrCodeId], references: [id])
+  qrCodeId         String?                     // Optional until activation
+  isActive         Boolean                     @default(true)
+  purchaseDate     DateTime                    @default(now())
+  activationDate   DateTime?                   // Date when subscription was activated with QR
+  expiryDate       DateTime?                   // Calculated based on subscription settings
+  totalPrice       Float                       // Price paid for this subscription
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  
+  // Relations
+  usageRecords     SubscriptionUsageRecord[]
+  
+  @@unique([qrCodeId]) // Each QR code can only be linked to one active subscription
+}
+
+// Track usage of services within a subscription
+model SubscriptionUsageRecord {
+  id                     String               @id @default(uuid())
+  customerSubscription   CustomerSubscription @relation(fields: [customerSubscriptionId], references: [id])
+  customerSubscriptionId String
+  service                Service              @relation(fields: [serviceId], references: [id])
+  serviceId              String
+  usedAt                 DateTime             @default(now())
+  usedBy                 user?                @relation("ServiceUsedBy", fields: [usedById], references: [id])
+  usedById               String?
+  notes                  String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 }
 
 enum TransactionStatus {
