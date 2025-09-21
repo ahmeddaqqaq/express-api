@@ -16,12 +16,12 @@ model user {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   // Relations
-  uploadedImages Image[]
-  createdTransactions Transaction[] @relation("CreatedByUser")
-  salesRecords SalesRecord[]
-  usageRecords SubscriptionUsageRecord[] @relation("ServiceUsedBy")
+  uploadedImages      Image[]
+  createdTransactions Transaction[]             @relation("CreatedByUser")
+  salesRecords        SalesRecord[]
+  usageRecords        SubscriptionUsageRecord[] @relation("ServiceUsedBy")
 }
 
 model Image {
@@ -40,34 +40,34 @@ model Image {
 }
 
 model Customer {
-  id           String        @id @default(uuid())
-  fName        String
-  lName        String
-  mobileNumber String        @unique
-  cars         Car[]
-  count        Int           @default(0)
-  isActive     Boolean       @default(true)
-  isBlacklisted Boolean      @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
+  id            String                 @id @default(uuid())
+  fName         String
+  lName         String
+  mobileNumber  String                 @unique
+  cars          Car[]
+  count         Int                    @default(0)
+  isActive      Boolean                @default(true)
+  isBlacklisted Boolean                @default(false)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  transactions  Transaction[]
   subscriptions CustomerSubscription[]
 }
 
 model Car {
-  id           String        @id @default(uuid())
-  brand        Brand         @relation(fields: [brandId], references: [id])
-  brandId      String
-  customer     Customer      @relation(fields: [customerId], references: [id])
-  customerId   String
-  model        Model         @relation(fields: [modelId], references: [id])
-  modelId      String
-  plateNumber  String
-  year         String?
-  color        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
+  id            String                 @id @default(uuid())
+  brand         Brand                  @relation(fields: [brandId], references: [id])
+  brandId       String
+  customer      Customer               @relation(fields: [customerId], references: [id])
+  customerId    String
+  model         Model                  @relation(fields: [modelId], references: [id])
+  modelId       String
+  plateNumber   String
+  year          String?
+  color         String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  transactions  Transaction[]
   subscriptions CustomerSubscription[]
 }
 
@@ -96,42 +96,42 @@ model Model {
 }
 
 model Transaction {
-  id           String                 @id @default(uuid())
-  status       TransactionStatus      @default(scheduled)
-  isPaid       Boolean                @default(false)
-  isPulled     Boolean                @default(false)
-  customer     Customer               @relation(fields: [customerId], references: [id])
-  customerId   String
-  car          Car                    @relation(fields: [carId], references: [id])
-  carId        String
-  service      Service                @relation(fields: [serviceId], references: [id])
-  serviceId    String
-  images       Image[]                @relation("TransactionImages")
-  addOns       AddOn[]
-  technicians  Technician[]
-  invoice      Invoice?
-  deliverTime  String?
-  notes        String?
-  OTP          String?
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  createdByUser    user?       @relation("CreatedByUser", fields: [createdByUserId], references: [id])
-  createdByUserId  String?
-  auditLogs    AuditLog[]
-  assignments  TechnicianAssignment[]
-  salesRecords SalesRecord[]
-  posOrder     PosOrder?
+  id              String                 @id @default(uuid())
+  status          TransactionStatus      @default(scheduled)
+  isPaid          Boolean                @default(false)
+  isPulled        Boolean                @default(false)
+  customer        Customer               @relation(fields: [customerId], references: [id])
+  customerId      String
+  car             Car                    @relation(fields: [carId], references: [id])
+  carId           String
+  service         Service                @relation(fields: [serviceId], references: [id])
+  serviceId       String
+  images          Image[]                @relation("TransactionImages")
+  addOns          AddOn[]
+  technicians     Technician[]
+  invoice         Invoice?
+  deliverTime     String?
+  notes           String?
+  OTP             String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  createdByUser   user?                  @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  createdByUserId String?
+  auditLogs       AuditLog[]
+  assignments     TechnicianAssignment[]
+  salesRecords    SalesRecord[]
+  posOrder        PosOrder?
 }
 
 model Service {
-  id           String         @id @default(uuid())
-  name         String
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  transactions Transaction[]
-  prices       ServicePrice[]
+  id                   String                    @id @default(uuid())
+  name                 String
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  transactions         Transaction[]
+  prices               ServicePrice[]
   subscriptionServices SubscriptionService[]
-  usageRecords SubscriptionUsageRecord[]
+  usageRecords         SubscriptionUsageRecord[]
 }
 
 model ServicePrice {
@@ -199,16 +199,15 @@ model Invoice {
 }
 
 model Sales {
-  id                  String                 @id @default(uuid())
-  firstName           String
-  lastName            String
-  mobileNumber        String?                @unique
-  isActive            Boolean                @default(true)
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-  salesRecords        SalesRecord[]
+  id           String        @id @default(uuid())
+  firstName    String
+  lastName     String
+  mobileNumber String?       @unique
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  salesRecords SalesRecord[]
 }
-
 
 model SalesRecord {
   id            String      @id @default(uuid())
@@ -218,10 +217,10 @@ model SalesRecord {
   sellerId      String?
   salesPerson   Sales?      @relation(fields: [salesPersonId], references: [id])
   salesPersonId String?
-  saleType      SaleType    // SERVICE or ADDON
-  itemId        String      // serviceId or addOnId
-  itemName      String      // service name or add-on name
-  price         Float       // price at time of sale
+  saleType      SaleType // SERVICE or ADDON
+  itemId        String // serviceId or addOnId
+  itemName      String // service name or add-on name
+  price         Float // price at time of sale
   quantity      Int         @default(1) // for add-ons that might have quantity
   soldAt        DateTime    @default(now())
   createdAt     DateTime    @default(now())
@@ -250,7 +249,7 @@ model PosOrder {
   id            String      @id @default(uuid())
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   transactionId String      @unique
-  data          Json        // Store the complete response data as JSON
+  data          Json // Store the complete response data as JSON
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
@@ -274,27 +273,27 @@ model TechnicianAssignment {
 
 // QR Code model for managing QR codes
 model QRCode {
-  id               String                 @id @default(uuid())
-  code             String                 @unique // 16 character unique code
-  isActive         Boolean                @default(false) // false until activated with subscription
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  
+  id        String   @id @default(uuid())
+  code      String   @unique // 16 character unique code
+  isActive  Boolean  @default(false) // false until activated with subscription
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
   customerSubscriptions CustomerSubscription[]
 }
 
 // Subscription Template model
 model Subscription {
-  id                String                 @id @default(uuid())
+  id                String    @id @default(uuid())
   name              String
   description       String?
-  endDate           DateTime?              // Optional validation: subscription end date
-  maxUsesPerService Int?                   // Optional validation: max uses per service
-  isActive          Boolean                @default(true)
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  
+  endDate           DateTime? // Optional validation: subscription end date
+  maxUsesPerService Int? // Optional validation: max uses per service
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
   // Relations
   subscriptionServices  SubscriptionService[]
   subscriptionPrices    SubscriptionPrice[]
@@ -308,10 +307,10 @@ model SubscriptionService {
   subscriptionId String
   service        Service      @relation(fields: [serviceId], references: [id])
   serviceId      String
-  usageCount     Int          // Number of times this service can be used
+  usageCount     Int // Number of times this service can be used
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  
+
   @@unique([subscriptionId, serviceId])
 }
 
@@ -324,32 +323,32 @@ model SubscriptionPrice {
   price          Float
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  
+
   @@unique([subscriptionId, carType])
 }
 
 // Customer's purchased subscriptions
 model CustomerSubscription {
-  id               String                      @id @default(uuid())
-  customer         Customer                    @relation(fields: [customerId], references: [id])
-  customerId       String
-  car              Car                         @relation(fields: [carId], references: [id])
-  carId            String
-  subscription     Subscription                @relation(fields: [subscriptionId], references: [id])
-  subscriptionId   String
-  qrCode           QRCode?                     @relation(fields: [qrCodeId], references: [id])
-  qrCodeId         String?                     // Optional until activation
-  isActive         Boolean                     @default(true)
-  purchaseDate     DateTime                    @default(now())
-  activationDate   DateTime?                   // Date when subscription was activated with QR
-  expiryDate       DateTime?                   // Calculated based on subscription settings
-  totalPrice       Float                       // Price paid for this subscription
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
-  
+  id             String       @id @default(uuid())
+  customer       Customer     @relation(fields: [customerId], references: [id])
+  customerId     String
+  car            Car          @relation(fields: [carId], references: [id])
+  carId          String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+  qrCode         QRCode?      @relation(fields: [qrCodeId], references: [id])
+  qrCodeId       String? // Optional until activation
+  isActive       Boolean      @default(true)
+  purchaseDate   DateTime     @default(now())
+  activationDate DateTime? // Date when subscription was activated with QR
+  expiryDate     DateTime? // Calculated based on subscription settings
+  totalPrice     Float // Price paid for this subscription
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
   // Relations
-  usageRecords     SubscriptionUsageRecord[]
-  
+  usageRecords SubscriptionUsageRecord[]
+
   @@unique([qrCodeId]) // Each QR code can only be linked to one active subscription
 }
 

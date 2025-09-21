@@ -5,20 +5,28 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateSubscriptionDto, UpdateSubscriptionDto } from './dto/create-subscription.dto';
-import { PurchaseSubscriptionDto, ActivateSubscriptionDto } from './dto/purchase-subscription.dto';
+import {
+  CreateSubscriptionDto,
+  UpdateSubscriptionDto,
+} from './dto/create-subscription.dto';
+import {
+  PurchaseSubscriptionDto,
+  ActivateSubscriptionDto,
+} from './dto/purchase-subscription.dto';
 import { UseServiceDto } from './dto/use-service.dto';
-import { CarType } from '@prisma/client';
+import { AssignQRCodeDto } from './dto/assign-subscription.dto';
+import { CarType, TransactionStatus } from '@prisma/client';
 
 @Injectable()
 export class SubscriptionService {
   constructor(private prisma: PrismaService) {}
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
-    const { name, description, endDate, maxUsesPerService, services, prices } = createSubscriptionDto;
+    const { name, description, endDate, maxUsesPerService, services, prices } =
+      createSubscriptionDto;
 
     // Validate that all services exist
-    const serviceIds = services.map(s => s.serviceId);
+    const serviceIds = services.map((s) => s.serviceId);
     const existingServices = await this.prisma.service.findMany({
       where: { id: { in: serviceIds } },
     });
@@ -29,11 +37,15 @@ export class SubscriptionService {
 
     // Validate that all car types are covered in pricing
     const requiredCarTypes = Object.values(CarType);
-    const providedCarTypes = prices.map(p => p.carType);
-    const missingCarTypes = requiredCarTypes.filter(ct => !providedCarTypes.includes(ct));
+    const providedCarTypes = prices.map((p) => p.carType);
+    const missingCarTypes = requiredCarTypes.filter(
+      (ct) => !providedCarTypes.includes(ct),
+    );
 
     if (missingCarTypes.length > 0) {
-      throw new BadRequestException(`Missing pricing for car types: ${missingCarTypes.join(', ')}`);
+      throw new BadRequestException(
+        `Missing pricing for car types: ${missingCarTypes.join(', ')}`,
+      );
     }
 
     const subscription = await this.prisma.subscription.create({
@@ -43,13 +55,13 @@ export class SubscriptionService {
         endDate: endDate ? new Date(endDate) : null,
         maxUsesPerService,
         subscriptionServices: {
-          create: services.map(s => ({
+          create: services.map((s) => ({
             serviceId: s.serviceId,
             usageCount: s.usageCount,
           })),
         },
         subscriptionPrices: {
-          create: prices.map(p => ({
+          create: prices.map((p) => ({
             carType: p.carType,
             price: p.price,
           })),
@@ -82,7 +94,7 @@ export class SubscriptionService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return subscriptions.map(sub => this.formatSubscriptionResponse(sub));
+    return subscriptions.map((sub) => this.formatSubscriptionResponse(sub));
   }
 
   async findOne(id: string) {
@@ -114,10 +126,11 @@ export class SubscriptionService {
       throw new NotFoundException('Subscription not found');
     }
 
-    const { name, description, endDate, maxUsesPerService, services, prices } = updateSubscriptionDto;
+    const { name, description, endDate, maxUsesPerService, services, prices } =
+      updateSubscriptionDto;
 
     // Validate services exist
-    const serviceIds = services.map(s => s.serviceId);
+    const serviceIds = services.map((s) => s.serviceId);
     const existingServices = await this.prisma.service.findMany({
       where: { id: { in: serviceIds } },
     });
@@ -128,11 +141,15 @@ export class SubscriptionService {
 
     // Validate pricing for all car types
     const requiredCarTypes = Object.values(CarType);
-    const providedCarTypes = prices.map(p => p.carType);
-    const missingCarTypes = requiredCarTypes.filter(ct => !providedCarTypes.includes(ct));
+    const providedCarTypes = prices.map((p) => p.carType);
+    const missingCarTypes = requiredCarTypes.filter(
+      (ct) => !providedCarTypes.includes(ct),
+    );
 
     if (missingCarTypes.length > 0) {
-      throw new BadRequestException(`Missing pricing for car types: ${missingCarTypes.join(', ')}`);
+      throw new BadRequestException(
+        `Missing pricing for car types: ${missingCarTypes.join(', ')}`,
+      );
     }
 
     const subscription = await this.prisma.subscription.update({
@@ -144,14 +161,14 @@ export class SubscriptionService {
         maxUsesPerService,
         subscriptionServices: {
           deleteMany: {},
-          create: services.map(s => ({
+          create: services.map((s) => ({
             serviceId: s.serviceId,
             usageCount: s.usageCount,
           })),
         },
         subscriptionPrices: {
           deleteMany: {},
-          create: prices.map(p => ({
+          create: prices.map((p) => ({
             carType: p.carType,
             price: p.price,
           })),
@@ -180,15 +197,18 @@ export class SubscriptionService {
     }
 
     // Check if there are any active customer subscriptions
-    const activeCustomerSubscriptions = await this.prisma.customerSubscription.count({
-      where: {
-        subscriptionId: id,
-        isActive: true,
-      },
-    });
+    const activeCustomerSubscriptions =
+      await this.prisma.customerSubscription.count({
+        where: {
+          subscriptionId: id,
+          isActive: true,
+        },
+      });
 
     if (activeCustomerSubscriptions > 0) {
-      throw new BadRequestException('Cannot delete subscription with active customer subscriptions');
+      throw new BadRequestException(
+        'Cannot delete subscription with active customer subscriptions',
+      );
     }
 
     await this.prisma.subscription.update({
@@ -221,7 +241,9 @@ export class SubscriptionService {
       },
     });
     if (!car) {
-      throw new NotFoundException('Car not found or does not belong to customer');
+      throw new NotFoundException(
+        'Car not found or does not belong to customer',
+      );
     }
 
     // Validate subscription exists and is active
@@ -242,9 +264,13 @@ export class SubscriptionService {
 
     // Get pricing for car type
     const carType = car.model.type;
-    const priceInfo = subscription.subscriptionPrices.find(p => p.carType === carType);
+    const priceInfo = subscription.subscriptionPrices.find(
+      (p) => p.carType === carType,
+    );
     if (!priceInfo) {
-      throw new BadRequestException(`No pricing available for car type: ${carType}`);
+      throw new BadRequestException(
+        `No pricing available for car type: ${carType}`,
+      );
     }
 
     // Check if subscription has expired
@@ -290,7 +316,9 @@ export class SubscriptionService {
       subscriptionId: customerSubscription.subscriptionId,
       totalPrice: customerSubscription.totalPrice,
       purchaseDate: customerSubscription.purchaseDate,
-      subscription: this.formatSubscriptionResponse(customerSubscription.subscription),
+      subscription: this.formatSubscriptionResponse(
+        customerSubscription.subscription,
+      ),
       customer: {
         name: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
         mobileNumber: customerSubscription.customer.mobileNumber,
@@ -309,19 +337,20 @@ export class SubscriptionService {
     const { customerSubscriptionId, qrCodeId } = activateDto;
 
     // Check if customer subscription exists and is not already activated
-    const customerSubscription = await this.prisma.customerSubscription.findUnique({
-      where: { id: customerSubscriptionId },
-      include: {
-        customer: true,
-        car: {
-          include: {
-            brand: true,
-            model: true,
+    const customerSubscription =
+      await this.prisma.customerSubscription.findUnique({
+        where: { id: customerSubscriptionId },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
           },
+          subscription: true,
         },
-        subscription: true,
-      },
-    });
+      });
 
     if (!customerSubscription) {
       throw new NotFoundException('Customer subscription not found');
@@ -332,7 +361,10 @@ export class SubscriptionService {
     }
 
     // Check if subscription has expired
-    if (customerSubscription.expiryDate && customerSubscription.expiryDate < new Date()) {
+    if (
+      customerSubscription.expiryDate &&
+      customerSubscription.expiryDate < new Date()
+    ) {
       throw new BadRequestException('Cannot activate expired subscription');
     }
 
@@ -341,7 +373,7 @@ export class SubscriptionService {
       where: { id: qrCodeId },
       include: {
         customerSubscriptions: {
-          where: { 
+          where: {
             isActive: true,
             qrCodeId: qrCodeId,
           },
@@ -354,29 +386,33 @@ export class SubscriptionService {
     }
 
     if (qrCode.isActive && qrCode.customerSubscriptions.length > 0) {
-      throw new ConflictException('QR Code is already in use by another subscription');
+      throw new ConflictException(
+        'QR Code is already in use by another subscription',
+      );
     }
 
     // Activate the subscription
-    const activatedSubscription = await this.prisma.customerSubscription.update({
-      where: { id: customerSubscriptionId },
-      data: {
-        qrCodeId,
-        activationDate: new Date(),
-      },
-      include: {
-        qrCode: true,
-        subscription: {
-          include: {
-            subscriptionServices: {
-              include: {
-                service: true,
+    const activatedSubscription = await this.prisma.customerSubscription.update(
+      {
+        where: { id: customerSubscriptionId },
+        data: {
+          qrCodeId,
+          activationDate: new Date(),
+        },
+        include: {
+          qrCode: true,
+          subscription: {
+            include: {
+              subscriptionServices: {
+                include: {
+                  service: true,
+                },
               },
             },
           },
         },
       },
-    });
+    );
 
     // Update QR code status
     await this.prisma.qRCode.update({
@@ -400,17 +436,128 @@ export class SubscriptionService {
       },
       subscription: {
         name: customerSubscription.subscription.name,
-        services: activatedSubscription.subscription.subscriptionServices.map(ss => ({
-          serviceName: ss.service.name,
-          usageCount: ss.usageCount,
-        })),
+        services: activatedSubscription.subscription.subscriptionServices.map(
+          (ss) => ({
+            serviceName: ss.service.name,
+            usageCount: ss.usageCount,
+          }),
+        ),
       },
     };
   }
 
-  async getSubscriptionByQR(qrCode: string) {
+  async assignQrCode(assignDto: AssignQRCodeDto) {
+    const { customerSubscriptionId, qrCodeId } = assignDto;
+
+    // Check if customer subscription exists
+    const customerSubscription =
+      await this.prisma.customerSubscription.findUnique({
+        where: { id: customerSubscriptionId },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          subscription: true,
+        },
+      });
+
+    if (!customerSubscription) {
+      throw new NotFoundException('Customer subscription not found');
+    }
+
+    // Check if subscription has expired
+    if (
+      customerSubscription.expiryDate &&
+      customerSubscription.expiryDate < new Date()
+    ) {
+      throw new BadRequestException(
+        'Cannot assign QR code to expired subscription',
+      );
+    }
+
+    // Check if QR code exists and is not already used
+    const qrCode = await this.prisma.qRCode.findUnique({
+      where: { id: qrCodeId },
+      include: {
+        customerSubscriptions: {
+          where: {
+            isActive: true,
+            qrCodeId: qrCodeId,
+          },
+        },
+      },
+    });
+
+    if (!qrCode) {
+      throw new NotFoundException('QR Code not found');
+    }
+
+    if (qrCode.isActive && qrCode.customerSubscriptions.length > 0) {
+      throw new ConflictException(
+        'QR Code is already in use by another subscription',
+      );
+    }
+
+    // Assign the QR code to the subscription
+    const updatedSubscription = await this.prisma.customerSubscription.update({
+      where: { id: customerSubscriptionId },
+      data: {
+        qrCodeId,
+        activationDate: new Date(), // Auto-activate when QR is assigned
+      },
+      include: {
+        qrCode: true,
+        subscription: {
+          include: {
+            subscriptionServices: {
+              include: {
+                service: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Update QR code status
+    await this.prisma.qRCode.update({
+      where: { id: qrCodeId },
+      data: { isActive: true },
+    });
+
+    return {
+      message: 'QR code assigned and subscription activated successfully',
+      customerSubscriptionId: updatedSubscription.id,
+      qrCode: updatedSubscription.qrCode!.code,
+      activationDate: updatedSubscription.activationDate,
+      customer: {
+        name: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
+        mobileNumber: customerSubscription.customer.mobileNumber,
+      },
+      car: {
+        plateNumber: customerSubscription.car.plateNumber,
+        brand: customerSubscription.car.brand.name,
+        model: customerSubscription.car.model.name,
+      },
+      subscription: {
+        name: customerSubscription.subscription.name,
+        services: updatedSubscription.subscription.subscriptionServices.map(
+          (ss) => ({
+            serviceName: ss.service.name,
+            usageCount: ss.usageCount,
+          }),
+        ),
+      },
+    };
+  }
+
+  async getSubscriptionByQR(qrCodeId: string) {
     const qr = await this.prisma.qRCode.findUnique({
-      where: { code: qrCode },
+      where: { id: qrCodeId },
       include: {
         customerSubscriptions: {
           where: { isActive: true },
@@ -446,37 +593,44 @@ export class SubscriptionService {
     });
 
     if (!qr || qr.customerSubscriptions.length === 0) {
-      throw new NotFoundException('No active subscription found for this QR code');
+      throw new NotFoundException(
+        'No active subscription found for this QR code',
+      );
     }
 
     const customerSubscription = qr.customerSubscriptions[0];
 
     // Calculate remaining services with detailed usage information
-    const remainingServices = customerSubscription.subscription.subscriptionServices.map(subService => {
-      const serviceUsages = customerSubscription.usageRecords.filter(
-        record => record.serviceId === subService.serviceId
-      );
-      
-      const usedCount = serviceUsages.length;
-      const remainingCount = Math.max(0, subService.usageCount - usedCount);
+    const remainingServices =
+      customerSubscription.subscription.subscriptionServices.map(
+        (subService) => {
+          const serviceUsages = customerSubscription.usageRecords.filter(
+            (record) => record.serviceId === subService.serviceId,
+          );
 
-      return {
-        serviceId: subService.serviceId,
-        serviceName: subService.service.name,
-        remainingCount,
-        totalCount: subService.usageCount,
-        usedCount,
-        lastUsed: serviceUsages.length > 0 ? serviceUsages[0].usedAt : null,
-        usageHistory: serviceUsages.map(usage => ({
-          usedAt: usage.usedAt,
-          usedBy: usage.usedBy ? {
-            id: usage.usedBy.id,
-            name: usage.usedBy.name,
-          } : null,
-          notes: usage.notes,
-        })),
-      };
-    });
+          const usedCount = serviceUsages.length;
+          const remainingCount = Math.max(0, subService.usageCount - usedCount);
+
+          return {
+            serviceId: subService.serviceId,
+            serviceName: subService.service.name,
+            remainingCount,
+            totalCount: subService.usageCount,
+            usedCount,
+            lastUsed: serviceUsages.length > 0 ? serviceUsages[0].usedAt : null,
+            usageHistory: serviceUsages.map((usage) => ({
+              usedAt: usage.usedAt,
+              usedBy: usage.usedBy
+                ? {
+                    id: usage.usedBy.id,
+                    name: usage.usedBy.name,
+                  }
+                : null,
+              notes: usage.notes,
+            })),
+          };
+        },
+      );
 
     return {
       id: customerSubscription.id,
@@ -518,16 +672,25 @@ export class SubscriptionService {
       remainingServices,
       totalServicesAvailable: remainingServices.length,
       totalServicesUsed: customerSubscription.usageRecords.length,
-      totalServicesRemaining: remainingServices.reduce((sum, service) => sum + service.remainingCount, 0),
+      totalServicesRemaining: remainingServices.reduce(
+        (sum, service) => sum + service.remainingCount,
+        0,
+      ),
       subscriptionStatus: {
         isActive: customerSubscription.isActive,
         totalPrice: customerSubscription.totalPrice,
         purchaseDate: customerSubscription.purchaseDate,
         activationDate: customerSubscription.activationDate,
         expiryDate: customerSubscription.expiryDate,
-        isExpired: customerSubscription.expiryDate ? new Date() > customerSubscription.expiryDate : false,
-        daysUntilExpiry: customerSubscription.expiryDate 
-          ? Math.ceil((customerSubscription.expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        isExpired: customerSubscription.expiryDate
+          ? new Date() > customerSubscription.expiryDate
+          : false,
+        daysUntilExpiry: customerSubscription.expiryDate
+          ? Math.ceil(
+              (customerSubscription.expiryDate.getTime() -
+                new Date().getTime()) /
+                (1000 * 60 * 60 * 24),
+            )
           : null,
       },
     };
@@ -564,15 +727,19 @@ export class SubscriptionService {
 
     // Check if service is available in subscription
     const availableService = subscriptionInfo.remainingServices.find(
-      service => service.serviceId === serviceId
+      (service) => service.serviceId === serviceId,
     );
 
     if (!availableService) {
-      throw new BadRequestException('Service not available in this subscription package');
+      throw new BadRequestException(
+        'Service not available in this subscription package',
+      );
     }
 
     if (availableService.remainingCount <= 0) {
-      throw new BadRequestException(`No remaining uses for service "${availableService.serviceName}". Used ${availableService.usedCount}/${availableService.totalCount} times.`);
+      throw new BadRequestException(
+        `No remaining uses for service "${availableService.serviceName}". Used ${availableService.usedCount}/${availableService.totalCount} times.`,
+      );
     }
 
     // Validate service exists
@@ -584,27 +751,60 @@ export class SubscriptionService {
       throw new NotFoundException('Service not found');
     }
 
-    // Record service usage
-    const usageRecord = await this.prisma.subscriptionUsageRecord.create({
-      data: {
-        customerSubscriptionId: subscriptionInfo.id,
-        serviceId,
-        usedById,
-        notes,
-      },
-      include: {
-        service: true,
-        usedBy: true,
-      },
+    // Record service usage and create transaction in a transaction
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Record service usage
+      const usageRecord = await prisma.subscriptionUsageRecord.create({
+        data: {
+          customerSubscriptionId: subscriptionInfo.id,
+          serviceId,
+          usedById,
+          notes,
+        },
+        include: {
+          service: true,
+          usedBy: true,
+        },
+      });
+
+      // Create a scheduled transaction for the service usage
+      const transaction = await prisma.transaction.create({
+        data: {
+          status: TransactionStatus.scheduled,
+          isPaid: true, // Subscription services are pre-paid
+          isPulled: false, // Not yet pulled, needs to be processed
+          customerId: subscriptionInfo.customer.id,
+          carId: subscriptionInfo.car.id,
+          serviceId,
+          createdByUserId: usedById,
+          notes:
+            notes ||
+            `Service used via subscription: ${subscriptionInfo.subscription.name}`,
+          deliverTime: null, // Will be set when transaction is completed
+        },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          service: true,
+          createdByUser: true,
+        },
+      });
+
+      return { usageRecord, transaction };
     });
 
     return {
-      message: 'Service used successfully',
-      serviceUsed: usageRecord.service.name,
+      message: 'Service used successfully and scheduled transaction created',
+      serviceUsed: result.usageRecord.service.name,
       previousRemaining: availableService.remainingCount,
       newRemaining: availableService.remainingCount - 1,
-      usedAt: usageRecord.usedAt,
-      usedBy: usageRecord.usedBy?.name || 'Unknown',
+      usedAt: result.usageRecord.usedAt,
+      usedBy: result.usageRecord.usedBy?.name || 'Unknown',
       customer: {
         name: subscriptionInfo.customer.fullName,
         mobileNumber: subscriptionInfo.customer.mobileNumber,
@@ -615,37 +815,169 @@ export class SubscriptionService {
         model: subscriptionInfo.car.model.name,
       },
       totalServicesRemaining: subscriptionInfo.totalServicesRemaining - 1,
+      transaction: {
+        id: result.transaction.id,
+        status: result.transaction.status,
+        createdAt: result.transaction.createdAt,
+        service: result.transaction.service.name,
+      },
     };
   }
 
-  async getPendingActivations() {
-    const pendingSubscriptions = await this.prisma.customerSubscription.findMany({
-      where: {
-        isActive: true,
-        activationDate: null,
-      },
-      include: {
-        customer: true,
-        car: {
-          include: {
-            brand: true,
-            model: true,
+  async getAllCustomerSubscriptions() {
+    const allCustomerSubscriptions =
+      await this.prisma.customerSubscription.findMany({
+        where: {
+          isActive: true,
+        },
+        include: {
+          customer: true,
+          qrCode: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          subscription: {
+            include: {
+              subscriptionServices: {
+                include: {
+                  service: true,
+                },
+              },
+            },
+          },
+          usageRecords: {
+            include: {
+              service: true,
+              usedBy: true,
+            },
+            orderBy: {
+              usedAt: 'desc',
+            },
           },
         },
+        orderBy: { createdAt: 'desc' },
+      });
+
+    return allCustomerSubscriptions.map((customerSub) => {
+      const remainingServices =
+        customerSub.subscription.subscriptionServices.map((subService) => {
+          const serviceUsages = customerSub.usageRecords.filter(
+            (record) => record.serviceId === subService.serviceId,
+          );
+          const usedCount = serviceUsages.length;
+
+          return {
+            serviceId: subService.serviceId,
+            serviceName: subService.service.name,
+            remainingCount: Math.max(0, subService.usageCount - usedCount),
+            totalCount: subService.usageCount,
+            usedCount,
+            lastUsed: serviceUsages.length > 0 ? serviceUsages[0].usedAt : null,
+          };
+        });
+
+      const totalServicesRemaining = remainingServices.reduce(
+        (sum, service) => sum + service.remainingCount,
+        0,
+      );
+      const isExpired = customerSub.expiryDate
+        ? new Date() > customerSub.expiryDate
+        : false;
+
+      return {
+        id: customerSub.id,
+        qrCode: customerSub.qrCode?.code || null,
+        isActivated: customerSub.activationDate !== null,
+        customer: {
+          id: customerSub.customer.id,
+          firstName: customerSub.customer.fName,
+          lastName: customerSub.customer.lName,
+          fullName: `${customerSub.customer.fName} ${customerSub.customer.lName}`,
+          mobileNumber: customerSub.customer.mobileNumber,
+          isActive: customerSub.customer.isActive,
+          isBlacklisted: customerSub.customer.isBlacklisted,
+        },
         subscription: {
-          include: {
-            subscriptionServices: {
-              include: {
-                service: true,
+          id: customerSub.subscription.id,
+          name: customerSub.subscription.name,
+          description: customerSub.subscription.description,
+        },
+        car: {
+          id: customerSub.car.id,
+          plateNumber: customerSub.car.plateNumber,
+          brand: {
+            id: customerSub.car.brand.id,
+            name: customerSub.car.brand.name,
+          },
+          model: {
+            id: customerSub.car.model.id,
+            name: customerSub.car.model.name,
+            type: customerSub.car.model.type,
+          },
+          year: customerSub.car.year,
+          color: customerSub.car.color,
+        },
+        remainingServices,
+        totalServicesRemaining,
+        status: {
+          isActive: customerSub.isActive,
+          isActivated: customerSub.activationDate !== null,
+          isExpired,
+          canUseServices:
+            customerSub.activationDate !== null &&
+            !isExpired &&
+            totalServicesRemaining > 0,
+        },
+        pricing: {
+          totalPrice: customerSub.totalPrice,
+        },
+        dates: {
+          purchaseDate: customerSub.purchaseDate,
+          activationDate: customerSub.activationDate,
+          expiryDate: customerSub.expiryDate,
+          daysUntilExpiry: customerSub.expiryDate
+            ? Math.ceil(
+                (customerSub.expiryDate.getTime() - new Date().getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
+            : null,
+        },
+      };
+    });
+  }
+
+  async getPendingActivations() {
+    const pendingSubscriptions =
+      await this.prisma.customerSubscription.findMany({
+        where: {
+          isActive: true,
+          activationDate: null,
+        },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          subscription: {
+            include: {
+              subscriptionServices: {
+                include: {
+                  service: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    return pendingSubscriptions.map(customerSub => ({
+    return pendingSubscriptions.map((customerSub) => ({
       id: customerSub.id,
       customer: {
         id: customerSub.customer.id,
@@ -663,7 +995,7 @@ export class SubscriptionService {
         id: customerSub.subscription.id,
         name: customerSub.subscription.name,
         description: customerSub.subscription.description,
-        services: customerSub.subscription.subscriptionServices.map(ss => ({
+        services: customerSub.subscription.subscriptionServices.map((ss) => ({
           serviceName: ss.service.name,
           usageCount: ss.usageCount,
         })),
@@ -719,25 +1051,31 @@ export class SubscriptionService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return subscriptions.map(customerSub => {
-      const remainingServices = customerSub.subscription.subscriptionServices.map(subService => {
-        const serviceUsages = customerSub.usageRecords.filter(
-          record => record.serviceId === subService.serviceId
-        );
-        const usedCount = serviceUsages.length;
+    return subscriptions.map((customerSub) => {
+      const remainingServices =
+        customerSub.subscription.subscriptionServices.map((subService) => {
+          const serviceUsages = customerSub.usageRecords.filter(
+            (record) => record.serviceId === subService.serviceId,
+          );
+          const usedCount = serviceUsages.length;
 
-        return {
-          serviceId: subService.serviceId,
-          serviceName: subService.service.name,
-          remainingCount: Math.max(0, subService.usageCount - usedCount),
-          totalCount: subService.usageCount,
-          usedCount,
-          lastUsed: serviceUsages.length > 0 ? serviceUsages[0].usedAt : null,
-        };
-      });
+          return {
+            serviceId: subService.serviceId,
+            serviceName: subService.service.name,
+            remainingCount: Math.max(0, subService.usageCount - usedCount),
+            totalCount: subService.usageCount,
+            usedCount,
+            lastUsed: serviceUsages.length > 0 ? serviceUsages[0].usedAt : null,
+          };
+        });
 
-      const totalServicesRemaining = remainingServices.reduce((sum, service) => sum + service.remainingCount, 0);
-      const isExpired = customerSub.expiryDate ? new Date() > customerSub.expiryDate : false;
+      const totalServicesRemaining = remainingServices.reduce(
+        (sum, service) => sum + service.remainingCount,
+        0,
+      );
+      const isExpired = customerSub.expiryDate
+        ? new Date() > customerSub.expiryDate
+        : false;
 
       return {
         id: customerSub.id,
@@ -769,7 +1107,10 @@ export class SubscriptionService {
           isActive: customerSub.isActive,
           isActivated: customerSub.activationDate !== null,
           isExpired,
-          canUseServices: customerSub.activationDate !== null && !isExpired && totalServicesRemaining > 0,
+          canUseServices:
+            customerSub.activationDate !== null &&
+            !isExpired &&
+            totalServicesRemaining > 0,
         },
         pricing: {
           totalPrice: customerSub.totalPrice,
@@ -778,8 +1119,11 @@ export class SubscriptionService {
           purchaseDate: customerSub.purchaseDate,
           activationDate: customerSub.activationDate,
           expiryDate: customerSub.expiryDate,
-          daysUntilExpiry: customerSub.expiryDate 
-            ? Math.ceil((customerSub.expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+          daysUntilExpiry: customerSub.expiryDate
+            ? Math.ceil(
+                (customerSub.expiryDate.getTime() - new Date().getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
             : null,
         },
       };

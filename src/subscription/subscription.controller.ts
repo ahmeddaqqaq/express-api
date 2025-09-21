@@ -23,9 +23,11 @@ import {
   ActivateSubscriptionDto,
 } from './dto/purchase-subscription.dto';
 import { UseServiceDto } from './dto/use-service.dto';
+import { AssignQRCodeDto } from './dto/assign-subscription.dto';
 import {
   SubscriptionResponseDto,
   CustomerSubscriptionResponseDto,
+  AllCustomerSubscriptionsResponseDto,
 } from './dto/subscription-response.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -40,6 +42,8 @@ export class SubscriptionController {
     private readonly qrCodeService: QRCodeService,
   ) {}
 
+  // Customer Subscription Operations - Put specific routes first
+
   @Post('create')
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({ summary: 'Create a new subscription template' })
@@ -48,53 +52,6 @@ export class SubscriptionController {
   async create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
     return this.subscriptionService.create(createSubscriptionDto);
   }
-
-  @Get()
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Get all active subscription templates' })
-  @ApiResponse({ status: 200, type: [SubscriptionResponseDto] })
-  async findAll() {
-    return this.subscriptionService.findAll();
-  }
-
-  @Get(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Get subscription template by ID' })
-  @ApiResponse({ status: 200, type: SubscriptionResponseDto })
-  @ApiResponse({ status: 404, description: 'Subscription not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.subscriptionService.findOne(id);
-  }
-
-  @Patch(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Update subscription template' })
-  @ApiResponse({ status: 200, type: SubscriptionResponseDto })
-  @ApiResponse({ status: 404, description: 'Subscription not found' })
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
-  ) {
-    return this.subscriptionService.update(id, updateSubscriptionDto);
-  }
-
-  @Delete(':id')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Delete subscription template' })
-  @ApiResponse({
-    status: 200,
-    description: 'Subscription deleted successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @ApiResponse({
-    status: 400,
-    description: 'Cannot delete subscription with active customers',
-  })
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.subscriptionService.delete(id);
-  }
-
-  // Customer Subscription Operations
 
   @Post('purchase')
   @Roles('ADMIN', 'SUPERVISOR')
@@ -128,6 +85,37 @@ export class SubscriptionController {
     return this.subscriptionService.activateSubscription(activateDto);
   }
 
+  @Post('assign-qr-code')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ 
+    summary: 'Assign QR code to a customer subscription',
+    operationId: 'subscriptionControllerAssignQrCode'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'QR code assigned successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer subscription or QR code not found',
+  })
+  @ApiResponse({ status: 409, description: 'QR code already in use' })
+  async assignQrCode(@Body() assignDto: AssignQRCodeDto) {
+    return this.subscriptionService.assignQrCode(assignDto);
+  }
+
+  @Get('customer-subscriptions')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Get all customer subscriptions' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'List of all customer subscriptions',
+    type: [AllCustomerSubscriptionsResponseDto]
+  })
+  async getAllCustomerSubscriptions() {
+    return this.subscriptionService.getAllCustomerSubscriptions();
+  }
+
   @Get('pending-activations')
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({
@@ -149,18 +137,6 @@ export class SubscriptionController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
   ) {
     return this.subscriptionService.getCustomerSubscriptions(customerId);
-  }
-
-  @Get('qr/:qrCode')
-  @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ summary: 'Get subscription details by QR code' })
-  @ApiResponse({ status: 200, description: 'Subscription details' })
-  @ApiResponse({
-    status: 404,
-    description: 'No active subscription found for QR code',
-  })
-  async getSubscriptionByQR(@Param('qrCode') qrCode: string) {
-    return this.subscriptionService.getSubscriptionByQR(qrCode);
   }
 
   @Post('use-service')
@@ -216,5 +192,64 @@ export class SubscriptionController {
   @ApiResponse({ status: 404, description: 'QR code not found' })
   async findQRByCode(@Param('code') code: string) {
     return this.qrCodeService.findByCode(code);
+  }
+
+  @Get('qr/:qrCode')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Get subscription details by QR code' })
+  @ApiResponse({ status: 200, description: 'Subscription details' })
+  @ApiResponse({
+    status: 404,
+    description: 'No active subscription found for QR code',
+  })
+  async getSubscriptionByQR(@Param('qrCode') qrCode: string) {
+    return this.subscriptionService.getSubscriptionByQR(qrCode);
+  }
+
+  // Subscription Template CRUD - Put ALL dynamic routes last including GET /
+
+  @Get(':id')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Get subscription template by ID' })
+  @ApiResponse({ status: 200, type: SubscriptionResponseDto })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.subscriptionService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Update subscription template' })
+  @ApiResponse({ status: 200, type: SubscriptionResponseDto })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
+  ) {
+    return this.subscriptionService.update(id, updateSubscriptionDto);
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Delete subscription template' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription deleted successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete subscription with active customers',
+  })
+  async remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.subscriptionService.delete(id);
+  }
+
+  @Get()
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Get all active subscription templates' })
+  @ApiResponse({ status: 200, type: [SubscriptionResponseDto] })
+  async findAll() {
+    return this.subscriptionService.findAll();
   }
 }

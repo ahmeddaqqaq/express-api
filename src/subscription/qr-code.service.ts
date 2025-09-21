@@ -10,29 +10,31 @@ export class QRCodeService {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     for (let i = 0; i < 16; i++) {
-      result += characters.charAt(Math.floor(Math.random() * characters.length));
+      result += characters.charAt(
+        Math.floor(Math.random() * characters.length),
+      );
     }
     return result;
   }
 
   async generateQRCodes(count: number = 1) {
     const codes = [];
-    
+
     for (let i = 0; i < count; i++) {
       let code = this.generateCode();
-      
+
       // Ensure uniqueness
       while (await this.prisma.qRCode.findUnique({ where: { code } })) {
         code = this.generateCode();
       }
-      
+
       const qrCode = await this.prisma.qRCode.create({
         data: { code },
       });
-      
+
       codes.push(qrCode);
     }
-    
+
     return codes;
   }
 
