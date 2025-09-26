@@ -100,6 +100,7 @@ model Transaction {
   status          TransactionStatus      @default(scheduled)
   isPaid          Boolean                @default(false)
   isPulled        Boolean                @default(false)
+  isSubscription  Boolean                @default(false)
   customer        Customer               @relation(fields: [customerId], references: [id])
   customerId      String
   car             Car                    @relation(fields: [carId], references: [id])

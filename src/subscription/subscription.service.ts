@@ -278,6 +278,10 @@ export class SubscriptionService {
       throw new BadRequestException('Subscription has expired');
     }
 
+    // Calculate expiry date as 30 days from purchase
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30);
+
     // Create customer subscription (without QR activation yet)
     const customerSubscription = await this.prisma.customerSubscription.create({
       data: {
@@ -286,7 +290,7 @@ export class SubscriptionService {
         subscriptionId,
         qrCodeId: null, // Will be set during activation
         totalPrice: priceInfo.price,
-        expiryDate: subscription.endDate,
+        expiryDate,
       },
       include: {
         customer: true,
@@ -773,6 +777,7 @@ export class SubscriptionService {
           status: TransactionStatus.scheduled,
           isPaid: true, // Subscription services are pre-paid
           isPulled: false, // Not yet pulled, needs to be processed
+          isSubscription: true, // Mark as subscription transaction
           customerId: subscriptionInfo.customer.id,
           carId: subscriptionInfo.car.id,
           serviceId,
@@ -819,6 +824,7 @@ export class SubscriptionService {
         id: result.transaction.id,
         status: result.transaction.status,
         createdAt: result.transaction.createdAt,
+        isSubscription: result.transaction.isSubscription,
         service: result.transaction.service.name,
       },
     };
@@ -1128,6 +1134,96 @@ export class SubscriptionService {
         },
       };
     });
+  }
+
+  async renewSubscription(qrCodeId: string) {
+    const sub = await this.prisma.customerSubscription.findUnique({
+      where: {
+        qrCodeId,
+      },
+      include: {
+        customer: true,
+        car: {
+          include: {
+            brand: true,
+            model: true,
+          },
+        },
+        subscription: true,
+      },
+    });
+
+    if (!sub) {
+      throw new NotFoundException('Subscription not found for this QR code');
+    }
+
+    if (!sub.isActive) {
+      throw new BadRequestException('Subscription is not active');
+    }
+
+    const newExpiryDate = new Date();
+    newExpiryDate.setDate(newExpiryDate.getDate() + 30);
+
+    const result = await this.prisma.$transaction(async (prisma) => {
+      await prisma.subscriptionUsageRecord.deleteMany({
+        where: {
+          customerSubscriptionId: sub.id,
+        },
+      });
+
+      const updatedSubscription = await prisma.customerSubscription.update({
+        where: { id: sub.id },
+        data: {
+          expiryDate: newExpiryDate,
+        },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          subscription: {
+            include: {
+              subscriptionServices: {
+                include: {
+                  service: true,
+                },
+              },
+            },
+          },
+          qrCode: true,
+        },
+      });
+
+      return updatedSubscription;
+    });
+
+    return {
+      message: 'Subscription renewed successfully',
+      id: result.id,
+      qrCode: result.qrCode?.code,
+      customer: {
+        name: `${result.customer.fName} ${result.customer.lName}`,
+        mobileNumber: result.customer.mobileNumber,
+      },
+      car: {
+        plateNumber: result.car.plateNumber,
+        brand: result.car.brand.name,
+        model: result.car.model.name,
+      },
+      subscription: {
+        name: result.subscription.name,
+        services: result.subscription.subscriptionServices.map((ss) => ({
+          serviceName: ss.service.name,
+          usageCount: ss.usageCount,
+        })),
+      },
+      renewedAt: new Date(),
+      newExpiryDate,
+      usageRecordsReset: true,
+    };
   }
 
   private formatSubscriptionResponse(subscription: any) {

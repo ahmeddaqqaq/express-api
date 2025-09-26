@@ -23,6 +23,9 @@ export class TransactionResponse {
   isPulled: boolean;
 
   @ApiProperty()
+  isSubscription: boolean;
+
+  @ApiProperty()
   customerId: string;
 
   @ApiProperty()

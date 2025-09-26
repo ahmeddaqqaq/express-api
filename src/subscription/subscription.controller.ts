@@ -87,9 +87,9 @@ export class SubscriptionController {
 
   @Post('assign-qr-code')
   @Roles('ADMIN', 'SUPERVISOR')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Assign QR code to a customer subscription',
-    operationId: 'subscriptionControllerAssignQrCode'
+    operationId: 'subscriptionControllerAssignQrCode',
   })
   @ApiResponse({
     status: 200,
@@ -107,10 +107,10 @@ export class SubscriptionController {
   @Get('customer-subscriptions')
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({ summary: 'Get all customer subscriptions' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'List of all customer subscriptions',
-    type: [AllCustomerSubscriptionsResponseDto]
+    type: [AllCustomerSubscriptionsResponseDto],
   })
   async getAllCustomerSubscriptions() {
     return this.subscriptionService.getAllCustomerSubscriptions();
@@ -150,6 +150,22 @@ export class SubscriptionController {
   })
   async useService(@Body() useServiceDto: UseServiceDto) {
     return this.subscriptionService.useService(useServiceDto);
+  }
+
+  @Patch('renew/:qrCodeId')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Renew a customer subscription by QR code ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription renewed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Subscription not found for QR code',
+  })
+  @ApiResponse({ status: 400, description: 'Subscription is not active' })
+  async renewSubscription(@Param('qrCodeId', ParseUUIDPipe) qrCodeId: string) {
+    return this.subscriptionService.renewSubscription(qrCodeId);
   }
 
   // QR Code Management
