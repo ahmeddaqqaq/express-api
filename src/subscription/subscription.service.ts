@@ -326,34 +326,17 @@ export class SubscriptionService {
       },
     });
 
-    return {
-      id: customerSubscription.id,
-      customerId: customerSubscription.customerId,
-      carId: customerSubscription.carId,
-      subscriptionId: customerSubscription.subscriptionId,
-      totalPrice: customerSubscription.totalPrice,
-      purchaseDate: customerSubscription.purchaseDate,
-      subscription: this.formatSubscriptionResponse(
-        customerSubscription.subscription,
-      ),
-      customer: {
-        name: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
-        mobileNumber: customerSubscription.customer.mobileNumber,
-      },
-      car: {
-        plateNumber: customerSubscription.car.plateNumber,
-        brand: customerSubscription.car.brand.name,
-        model: customerSubscription.car.model.name,
-        type: customerSubscription.car.model.type,
-      },
-      status: 'purchased', // Not yet activated with QR
-    };
-
     // Create POS order for subscription purchase
     try {
-      await this.integrationService.createOrderFromSubscription(customerSubscription.id, false);
+      await this.integrationService.createOrderFromSubscription(
+        customerSubscription.id,
+        false,
+      );
     } catch (error) {
-      console.error('Failed to create POS order for subscription purchase:', error);
+      console.error(
+        'Failed to create POS order for subscription purchase:',
+        error,
+      );
       // Don't fail the subscription purchase if POS integration fails
     }
 
@@ -363,7 +346,10 @@ export class SubscriptionService {
       customerSubscription.customer.mobileNumber.startsWith('078')
     ) {
       const subscriptionWelcomeMessage = `Thank you for subscribing to ${customerSubscription.subscription.name}! Your subscription is active and ready to use. Visit RADIANT to enjoy your services.`;
-      await this.sendSMS(customerSubscription.customer.mobileNumber, subscriptionWelcomeMessage);
+      await this.sendSMS(
+        customerSubscription.customer.mobileNumber,
+        subscriptionWelcomeMessage,
+      );
     }
 
     return {
@@ -856,40 +842,21 @@ export class SubscriptionService {
       return { usageRecord, transaction };
     });
 
-    return {
-      message: 'Service used successfully and scheduled transaction created',
-      serviceUsed: result.usageRecord.service.name,
-      previousRemaining: availableService.remainingCount,
-      newRemaining: availableService.remainingCount - 1,
-      usedAt: result.usageRecord.usedAt,
-      usedBy: result.usageRecord.usedBy?.name || 'Unknown',
-      customer: {
-        name: subscriptionInfo.customer.fullName,
-        mobileNumber: subscriptionInfo.customer.mobileNumber,
-      },
-      car: {
-        plateNumber: subscriptionInfo.car.plateNumber,
-        brand: subscriptionInfo.car.brand.name,
-        model: subscriptionInfo.car.model.name,
-      },
-      totalServicesRemaining: subscriptionInfo.totalServicesRemaining - 1,
-      transaction: {
-        id: result.transaction.id,
-        status: result.transaction.status,
-        createdAt: result.transaction.createdAt,
-        isSubscription: result.transaction.isSubscription,
-        service: result.transaction.service.name,
-      },
-    };
-
     // Send SMS for service usage
     if (
       subscriptionInfo.customer.mobileNumber.startsWith('077') ||
       subscriptionInfo.customer.mobileNumber.startsWith('078')
     ) {
       const newRemainingCount = availableService.remainingCount - 1;
-      const serviceUsageMessage = `${availableService.serviceName} used successfully! You have ${newRemainingCount} ${newRemainingCount === 1 ? 'service' : 'services'} remaining in your ${subscriptionInfo.subscription.name} subscription.`;
-      await this.sendSMS(subscriptionInfo.customer.mobileNumber, serviceUsageMessage);
+      const serviceUsageMessage = `${
+        availableService.serviceName
+      } used successfully! You have ${newRemainingCount} ${
+        newRemainingCount === 1 ? 'service' : 'services'
+      } remaining in your ${subscriptionInfo.subscription.name} subscription.`;
+      await this.sendSMS(
+        subscriptionInfo.customer.mobileNumber,
+        serviceUsageMessage,
+      );
     }
 
     return {
@@ -1291,9 +1258,15 @@ export class SubscriptionService {
 
     // Create POS order for subscription renewal
     try {
-      await this.integrationService.createOrderFromSubscription(result.id, true);
+      await this.integrationService.createOrderFromSubscription(
+        result.id,
+        true,
+      );
     } catch (error) {
-      console.error('Failed to create POS order for subscription renewal:', error);
+      console.error(
+        'Failed to create POS order for subscription renewal:',
+        error,
+      );
       // Don't fail the renewal if POS integration fails
     }
 
