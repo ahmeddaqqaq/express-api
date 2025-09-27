@@ -33,6 +33,10 @@ export class SubscriptionPriceDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @ApiProperty({ description: 'POS service ID for this car type' })
+  @IsInt()
+  posServiceId: number;
 }
 
 export class CreateSubscriptionDto {

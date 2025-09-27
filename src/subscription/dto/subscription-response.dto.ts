@@ -21,6 +21,9 @@ export class SubscriptionPriceResponseDto {
 
   @ApiProperty()
   price: number;
+
+  @ApiProperty()
+  posServiceId: number;
 }
 
 export class SubscriptionResponseDto {

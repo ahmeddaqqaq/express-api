@@ -64,6 +64,7 @@ export class SubscriptionService {
           create: prices.map((p) => ({
             carType: p.carType,
             price: p.price,
+            posServiceId: p.posServiceId,
           })),
         },
       },
@@ -171,6 +172,7 @@ export class SubscriptionService {
           create: prices.map((p) => ({
             carType: p.carType,
             price: p.price,
+            posServiceId: p.posServiceId,
           })),
         },
       },
@@ -1243,6 +1245,7 @@ export class SubscriptionService {
       prices: subscription.subscriptionPrices.map((sp: any) => ({
         carType: sp.carType,
         price: sp.price,
+        posServiceId: sp.posServiceId,
       })),
       createdAt: subscription.createdAt,
       updatedAt: subscription.updatedAt,

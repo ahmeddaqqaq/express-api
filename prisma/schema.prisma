@@ -22,6 +22,7 @@ model user {
   createdTransactions Transaction[]             @relation("CreatedByUser")
   salesRecords        SalesRecord[]
   usageRecords        SubscriptionUsageRecord[] @relation("ServiceUsedBy")
+  dailyNotes          DailyNote[]
 }
 
 model Image {
@@ -32,6 +33,8 @@ model Image {
   uploadedAtStage TransactionStatus? // Track which stage the image was uploaded in
   uploadedBy      user?              @relation(fields: [uploadedById], references: [id])
   uploadedById    String?
+  dailyNote       DailyNote?         @relation("DailyNoteImages", fields: [dailyNoteId], references: [id])
+  dailyNoteId     String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -322,6 +325,7 @@ model SubscriptionPrice {
   subscriptionId String
   carType        CarType
   price          Float
+  posServiceId   Int          @default(0)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -400,6 +404,20 @@ enum ShiftType {
   WEEKEND
   HOLIDAY
   OVERTIME
+}
+
+// Daily Notes model for staff notes with image attachments
+model DailyNote {
+  id          String   @id @default(uuid())
+  note        String   @db.Text
+  createdBy   user     @relation(fields: [createdById], references: [id])
+  createdById String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  images Image[] @relation("DailyNoteImages")
 }
 
 enum AuditAction {
