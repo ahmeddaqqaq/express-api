@@ -198,21 +198,6 @@ export class SubscriptionService {
       throw new NotFoundException('Subscription not found');
     }
 
-    // Check if there are any active customer subscriptions
-    const activeCustomerSubscriptions =
-      await this.prisma.customerSubscription.count({
-        where: {
-          subscriptionId: id,
-          isActive: true,
-        },
-      });
-
-    if (activeCustomerSubscriptions > 0) {
-      throw new BadRequestException(
-        'Cannot delete subscription with active customer subscriptions',
-      );
-    }
-
     await this.prisma.subscription.update({
       where: { id },
       data: { isActive: false },
