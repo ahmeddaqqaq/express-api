@@ -234,6 +234,7 @@ export class IntegrationService {
       },
       include: {
         transaction: true,
+        customerSubscription: true,
       },
     });
 
@@ -241,17 +242,86 @@ export class IntegrationService {
       throw new NotFoundException('Order not found');
     }
 
-    const transaction = posOrder.transaction;
+    // Handle transaction order
+    if (posOrder.transaction) {
+      const transaction = posOrder.transaction;
 
-    // Check if already pulled
-    if (transaction.isPulled) {
-      throw new BadRequestException('Transaction is already marked as pulled');
+      // Check if already pulled
+      if (transaction.isPulled) {
+        throw new BadRequestException('Transaction is already marked as pulled');
+      }
+
+      // Update transaction to mark as pulled
+      const updatedTransaction = await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { isPulled: true },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          service: true,
+          addOns: true,
+          createdByUser: true,
+        },
+      });
+
+      return {
+        message: 'Transaction marked as pulled successfully',
+        transaction: updatedTransaction,
+      };
     }
 
-    // Update transaction to mark as pulled
-    const updatedTransaction = await this.prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { isPulled: true },
+    // Handle subscription order
+    if (posOrder.customerSubscription) {
+      const customerSubscription = posOrder.customerSubscription;
+
+      // Check if already pulled
+      if (customerSubscription.isPulled) {
+        throw new BadRequestException('Subscription is already marked as pulled');
+      }
+
+      // Update customer subscription to mark as pulled
+      const updatedSubscription = await this.prisma.customerSubscription.update({
+        where: { id: customerSubscription.id },
+        data: { isPulled: true },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
+            },
+          },
+          subscription: true,
+        },
+      });
+
+      return {
+        message: 'Subscription marked as pulled successfully',
+        customerSubscription: updatedSubscription,
+      };
+    }
+
+    throw new BadRequestException('Order has no associated transaction or subscription');
+  }
+
+  async createOrderFromSubscription(customerSubscriptionId: string, isRenewal: boolean = false) {
+    // Check if POS order already exists for this subscription
+    const existingPosOrder = await this.prisma.posOrder.findUnique({
+      where: { customerSubscriptionId },
+    });
+
+    if (existingPosOrder) {
+      return existingPosOrder;
+    }
+
+    // Get the customer subscription with all related data
+    const customerSubscription = await this.prisma.customerSubscription.findUnique({
+      where: { id: customerSubscriptionId },
       include: {
         customer: true,
         car: {
@@ -260,15 +330,89 @@ export class IntegrationService {
             model: true,
           },
         },
-        service: true,
-        addOns: true,
-        createdByUser: true,
+        subscription: {
+          include: {
+            subscriptionPrices: true,
+          },
+        },
       },
     });
 
-    return {
-      message: 'Transaction marked as pulled successfully',
-      transaction: updatedTransaction,
+    if (!customerSubscription) {
+      throw new Error(`Customer subscription with ID ${customerSubscriptionId} not found`);
+    }
+
+    // Get the subscription price for the specific car type
+    const subscriptionPrice = customerSubscription.subscription.subscriptionPrices.find(
+      price => price.carType === customerSubscription.car.model.type
+    );
+
+    if (!subscriptionPrice) {
+      throw new Error(
+        `No price found for subscription ${customerSubscription.subscription.name} and car type ${customerSubscription.car.model.type}`,
+      );
+    }
+
+    const products = [];
+
+    // Add the subscription as a product using car-type specific posServiceId
+    products.push({
+      id: subscriptionPrice.posServiceId,
+      note: isRenewal ? "Subscription Renewal" : "Subscription Purchase",
+      count: 1,
+      taxValue: 0,
+      taxPercent: 16,
+      discountValue: 0,
+      originalPrice: customerSubscription.totalPrice / 1.16,
+      priceAfterTax: customerSubscription.totalPrice,
+      selleingPrice: customerSubscription.totalPrice,
+    });
+
+    // Calculate total price
+    const totalPrice = products.reduce(
+      (sum, product) => sum + product.selleingPrice,
+      0,
+    );
+
+    const orderNumber = this.uniqueInt32();
+
+    // Create the exact response format
+    const responseData = {
+      price: {
+        priceMode: null,
+        totalPrice: totalPrice,
+        servicefee: 0,
+        discountType: 'Discount_promo',
+        orderPayment: 'Cash',
+        deliveryPrice: 0,
+        totalDiscount: 0,
+      },
+      menuId: '5',
+      branchId: 1,
+      isPickup: false,
+      products: products,
+      orderNote: isRenewal 
+        ? `Subscription Renewal: ${customerSubscription.subscription.name}`
+        : `Subscription Purchase: ${customerSubscription.subscription.name}`,
+      OrderHastag: null,
+      orderNumber: orderNumber,
+      orderSourceName: 'Radiant_App',
+      orderCompanyPhone: customerSubscription.customer.mobileNumber,
+      carName: `${customerSubscription.car.brand.name} ${customerSubscription.car.model.name} (${
+        customerSubscription.car.color ?? 'No Color'
+      })`,
+      orderCompanyCustomer: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
+      plateNumber: customerSubscription.car.plateNumber,
     };
+
+    // Save POS order to database
+    const posOrder = await this.prisma.posOrder.create({
+      data: {
+        customerSubscriptionId,
+        data: responseData,
+      },
+    });
+
+    return posOrder;
   }
 }

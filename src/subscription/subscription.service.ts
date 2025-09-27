@@ -3,8 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { IntegrationService } from '../integration/integration.service';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -16,10 +18,34 @@ import {
 import { UseServiceDto } from './dto/use-service.dto';
 import { AssignQRCodeDto } from './dto/assign-subscription.dto';
 import { CarType, TransactionStatus } from '@prisma/client';
+import axios from 'axios';
 
 @Injectable()
 export class SubscriptionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private integrationService: IntegrationService,
+  ) {}
+
+  logger = new Logger('SubscriptionService');
+
+  private async sendSMS(mobileNumber: string, message: string): Promise<void> {
+    try {
+      const otpUrl = `${process.env.OTP_SERVICE_URL}&msg=${encodeURIComponent(
+        message,
+      )}&numbers=${'962' + mobileNumber.slice(1)}`;
+
+      await axios.get(otpUrl, {
+        timeout: 10000,
+      });
+
+      this.logger.log(`SMS sent successfully to ${mobileNumber}`);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send SMS to ${mobileNumber}: ${error.message}`,
+      );
+    }
+  }
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
     const { name, description, endDate, maxUsesPerService, services, prices } =
@@ -299,6 +325,46 @@ export class SubscriptionService {
         },
       },
     });
+
+    return {
+      id: customerSubscription.id,
+      customerId: customerSubscription.customerId,
+      carId: customerSubscription.carId,
+      subscriptionId: customerSubscription.subscriptionId,
+      totalPrice: customerSubscription.totalPrice,
+      purchaseDate: customerSubscription.purchaseDate,
+      subscription: this.formatSubscriptionResponse(
+        customerSubscription.subscription,
+      ),
+      customer: {
+        name: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
+        mobileNumber: customerSubscription.customer.mobileNumber,
+      },
+      car: {
+        plateNumber: customerSubscription.car.plateNumber,
+        brand: customerSubscription.car.brand.name,
+        model: customerSubscription.car.model.name,
+        type: customerSubscription.car.model.type,
+      },
+      status: 'purchased', // Not yet activated with QR
+    };
+
+    // Create POS order for subscription purchase
+    try {
+      await this.integrationService.createOrderFromSubscription(customerSubscription.id, false);
+    } catch (error) {
+      console.error('Failed to create POS order for subscription purchase:', error);
+      // Don't fail the subscription purchase if POS integration fails
+    }
+
+    // Send SMS for subscription purchase
+    if (
+      customerSubscription.customer.mobileNumber.startsWith('077') ||
+      customerSubscription.customer.mobileNumber.startsWith('078')
+    ) {
+      const subscriptionWelcomeMessage = `Thank you for subscribing to ${customerSubscription.subscription.name}! Your subscription is active and ready to use. Visit RADIANT to enjoy your services.`;
+      await this.sendSMS(customerSubscription.customer.mobileNumber, subscriptionWelcomeMessage);
+    }
 
     return {
       id: customerSubscription.id,
@@ -815,6 +881,42 @@ export class SubscriptionService {
         service: result.transaction.service.name,
       },
     };
+
+    // Send SMS for service usage
+    if (
+      subscriptionInfo.customer.mobileNumber.startsWith('077') ||
+      subscriptionInfo.customer.mobileNumber.startsWith('078')
+    ) {
+      const newRemainingCount = availableService.remainingCount - 1;
+      const serviceUsageMessage = `${availableService.serviceName} used successfully! You have ${newRemainingCount} ${newRemainingCount === 1 ? 'service' : 'services'} remaining in your ${subscriptionInfo.subscription.name} subscription.`;
+      await this.sendSMS(subscriptionInfo.customer.mobileNumber, serviceUsageMessage);
+    }
+
+    return {
+      message: 'Service used successfully and scheduled transaction created',
+      serviceUsed: result.usageRecord.service.name,
+      previousRemaining: availableService.remainingCount,
+      newRemaining: availableService.remainingCount - 1,
+      usedAt: result.usageRecord.usedAt,
+      usedBy: result.usageRecord.usedBy?.name || 'Unknown',
+      customer: {
+        name: subscriptionInfo.customer.fullName,
+        mobileNumber: subscriptionInfo.customer.mobileNumber,
+      },
+      car: {
+        plateNumber: subscriptionInfo.car.plateNumber,
+        brand: subscriptionInfo.car.brand.name,
+        model: subscriptionInfo.car.model.name,
+      },
+      totalServicesRemaining: subscriptionInfo.totalServicesRemaining - 1,
+      transaction: {
+        id: result.transaction.id,
+        status: result.transaction.status,
+        createdAt: result.transaction.createdAt,
+        isSubscription: result.transaction.isSubscription,
+        service: result.transaction.service.name,
+      },
+    };
   }
 
   async getAllCustomerSubscriptions() {
@@ -1186,6 +1288,23 @@ export class SubscriptionService {
 
       return updatedSubscription;
     });
+
+    // Create POS order for subscription renewal
+    try {
+      await this.integrationService.createOrderFromSubscription(result.id, true);
+    } catch (error) {
+      console.error('Failed to create POS order for subscription renewal:', error);
+      // Don't fail the renewal if POS integration fails
+    }
+
+    // Send SMS for subscription renewal
+    if (
+      result.customer.mobileNumber.startsWith('077') ||
+      result.customer.mobileNumber.startsWith('078')
+    ) {
+      const renewalMessage = `Your ${result.subscription.name} subscription has been renewed successfully! Your services are reset and ready to use. Thank you for choosing RADIANT!`;
+      await this.sendSMS(result.customer.mobileNumber, renewalMessage);
+    }
 
     return {
       message: 'Subscription renewed successfully',

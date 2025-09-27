@@ -3,9 +3,10 @@ import { SubscriptionService } from './subscription.service';
 import { QRCodeService } from './qr-code.service';
 import { SubscriptionController } from './subscription.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { IntegrationModule } from '../integration/integration.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, IntegrationModule],
   controllers: [SubscriptionController],
   providers: [SubscriptionService, QRCodeService],
   exports: [SubscriptionService, QRCodeService],
