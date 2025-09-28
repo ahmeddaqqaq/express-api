@@ -345,7 +345,7 @@ export class SubscriptionService {
       customerSubscription.customer.mobileNumber.startsWith('077') ||
       customerSubscription.customer.mobileNumber.startsWith('078')
     ) {
-      const subscriptionWelcomeMessage = `Thank you for subscribing to ${customerSubscription.subscription.name}! Your subscription is active and ready to use. Visit RADIANT to enjoy your services.`;
+      const subscriptionWelcomeMessage = `Welcom to ${customerSubscription.subscription.name} Subscription! Your journy to consistant car care begins here. We look forward to keeping your car Neat and Radiant.`;
       await this.sendSMS(
         customerSubscription.customer.mobileNumber,
         subscriptionWelcomeMessage,
@@ -848,11 +848,13 @@ export class SubscriptionService {
       subscriptionInfo.customer.mobileNumber.startsWith('078')
     ) {
       const newRemainingCount = availableService.remainingCount - 1;
-      const serviceUsageMessage = `${
-        availableService.serviceName
-      } used successfully! You have ${newRemainingCount} ${
+      const serviceUsageMessage = `Dear ${
+        subscriptionInfo.customer.firstName
+      } ${
+        subscriptionInfo.customer.lastName
+      }, You car will be Ready and Radiant in no time. You have ${newRemainingCount} ${
         newRemainingCount === 1 ? 'service' : 'services'
-      } remaining in your ${subscriptionInfo.subscription.name} subscription.`;
+      } remaining in your subscription.`;
       await this.sendSMS(
         subscriptionInfo.customer.mobileNumber,
         serviceUsageMessage,
