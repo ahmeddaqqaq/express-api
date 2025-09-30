@@ -862,6 +862,7 @@ export class SubscriptionService {
       `Checking SMS eligibility for service usage, number: ${subscriptionInfo.customer.mobileNumber}`,
     );
     if (
+      subscriptionInfo.customer.mobileNumber.startsWith('079') ||
       subscriptionInfo.customer.mobileNumber.startsWith('077') ||
       subscriptionInfo.customer.mobileNumber.startsWith('078')
     ) {
