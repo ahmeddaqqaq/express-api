@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, TransactionStatus } from '@prisma/client';
@@ -9,6 +10,7 @@ import { Prisma, TransactionStatus } from '@prisma/client';
 @Injectable()
 export class IntegrationService {
   constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(IntegrationService.name);
   lastValue = 0;
   uniqueInt32() {
     const base = Math.floor((Date.now() % 1_000_000_000) / 10);
@@ -333,10 +335,18 @@ export class IntegrationService {
     customerSubscriptionId: string,
     isRenewal: boolean = false,
   ) {
+    this.logger.log(
+      `Creating order for subscription: ${customerSubscriptionId}, isRenewal: ${isRenewal}`,
+    );
+
     // Check if POS order already exists for this subscription
     const existingPosOrder = await this.prisma.posOrder.findUnique({
       where: { customerSubscriptionId },
     });
+
+    this.logger.log(
+      `Existing POS order found: ${existingPosOrder ? 'YES' : 'NO'}`,
+    );
 
     // For renewals, update the existing order data
     if (existingPosOrder && isRenewal) {
@@ -413,7 +423,7 @@ export class IntegrationService {
         branchId: 1,
         isPickup: false,
         products: products,
-        orderNote: "No Notes",
+        orderNote: 'No Notes',
         OrderHastag: null,
         orderNumber: orderNumber,
         orderSourceName: 'Radiant_App',
@@ -436,8 +446,11 @@ export class IntegrationService {
 
     // For purchases, return existing order if found
     if (existingPosOrder) {
+      this.logger.log(`Returning existing POS order: ${existingPosOrder.id}`);
       return existingPosOrder;
     }
+
+    this.logger.log(`Creating new POS order for subscription purchase`);
 
     // Get the customer subscription with all related data
     const customerSubscription =
@@ -515,7 +528,7 @@ export class IntegrationService {
       branchId: 1,
       isPickup: false,
       products: products,
-      orderNote: "No Notes",
+      orderNote: 'No Notes',
       OrderHastag: null,
       orderNumber: orderNumber,
       orderSourceName: 'Radiant_App',
@@ -528,6 +541,11 @@ export class IntegrationService {
     };
 
     // Save POS order to database
+    this.logger.log(
+      `Saving POS order to database for subscription: ${customerSubscriptionId}`,
+    );
+    this.logger.log(`Order data: ${JSON.stringify(responseData, null, 2)}`);
+
     const posOrder = await this.prisma.posOrder.create({
       data: {
         customerSubscriptionId,
@@ -535,6 +553,7 @@ export class IntegrationService {
       },
     });
 
+    this.logger.log(`POS order created successfully with ID: ${posOrder.id}`);
     return posOrder;
   }
 }
