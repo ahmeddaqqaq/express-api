@@ -382,7 +382,7 @@ export class IntegrationService {
       const products = [
         {
           id: subscriptionPrice.posServiceId,
-          note: 'Subscription Renewal',
+          note: null,
           count: 1,
           taxValue: 0,
           taxPercent: 16,
@@ -413,7 +413,7 @@ export class IntegrationService {
         branchId: 1,
         isPickup: false,
         products: products,
-        orderNote: `Subscription Renewal: ${customerSubscription.subscription.name}`,
+        orderNote: "No Notes",
         OrderHastag: null,
         orderNumber: orderNumber,
         orderSourceName: 'Radiant_App',
@@ -482,7 +482,7 @@ export class IntegrationService {
     // Add the subscription as a product using car-type specific posServiceId
     products.push({
       id: subscriptionPrice.posServiceId,
-      note: isRenewal ? 'Subscription Renewal' : 'Subscription Purchase',
+      note: null,
       count: 1,
       taxValue: 0,
       taxPercent: 16,
@@ -515,9 +515,7 @@ export class IntegrationService {
       branchId: 1,
       isPickup: false,
       products: products,
-      orderNote: isRenewal
-        ? `Subscription Renewal: ${customerSubscription.subscription.name}`
-        : `Subscription Purchase: ${customerSubscription.subscription.name}`,
+      orderNote: "No Notes",
       OrderHastag: null,
       orderNumber: orderNumber,
       orderSourceName: 'Radiant_App',
