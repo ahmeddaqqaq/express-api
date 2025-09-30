@@ -327,28 +327,43 @@ export class SubscriptionService {
     });
 
     // Create POS order for subscription purchase
+    this.logger.log(
+      `Creating POS order for subscription: ${customerSubscription.id}`,
+    );
     try {
-      await this.integrationService.createOrderFromSubscription(
-        customerSubscription.id,
-        false,
-      );
+      const posOrder =
+        await this.integrationService.createOrderFromSubscription(
+          customerSubscription.id,
+          false,
+        );
+      this.logger.log(`POS order created successfully: ${posOrder.id}`);
     } catch (error) {
-      console.error(
-        'Failed to create POS order for subscription purchase:',
-        error,
+      this.logger.error(
+        `Failed to create POS order for subscription purchase: ${error.message}`,
+        error.stack,
       );
       // Don't fail the subscription purchase if POS integration fails
     }
 
     // Send SMS for subscription purchase
+    this.logger.log(
+      `Checking SMS eligibility for number: ${customerSubscription.customer.mobileNumber}`,
+    );
     if (
       customerSubscription.customer.mobileNumber.startsWith('077') ||
       customerSubscription.customer.mobileNumber.startsWith('078')
     ) {
+      this.logger.log(
+        `Sending SMS to: ${customerSubscription.customer.mobileNumber}`,
+      );
       const subscriptionWelcomeMessage = `Welcom to ${customerSubscription.subscription.name} Subscription! Your journy to consistant car care begins here. We look forward to keeping your car Neat and Radiant.`;
       await this.sendSMS(
         customerSubscription.customer.mobileNumber,
         subscriptionWelcomeMessage,
+      );
+    } else {
+      this.logger.log(
+        `SMS not sent - number ${customerSubscription.customer.mobileNumber} does not start with 077 or 078`,
       );
     }
 
@@ -843,6 +858,9 @@ export class SubscriptionService {
     });
 
     // Send SMS for service usage
+    this.logger.log(
+      `Checking SMS eligibility for service usage, number: ${subscriptionInfo.customer.mobileNumber}`,
+    );
     if (
       subscriptionInfo.customer.mobileNumber.startsWith('077') ||
       subscriptionInfo.customer.mobileNumber.startsWith('078')
@@ -855,9 +873,16 @@ export class SubscriptionService {
       }, You car will be Ready and Radiant in no time. You have ${newRemainingCount} ${
         newRemainingCount === 1 ? 'service' : 'services'
       } remaining in your subscription.`;
+      this.logger.log(
+        `Sending service usage SMS to: ${subscriptionInfo.customer.mobileNumber}`,
+      );
       await this.sendSMS(
         subscriptionInfo.customer.mobileNumber,
         serviceUsageMessage,
+      );
+    } else {
+      this.logger.log(
+        `SMS not sent for service usage - number ${subscriptionInfo.customer.mobileNumber} does not start with 077 or 078`,
       );
     }
 
@@ -1259,26 +1284,43 @@ export class SubscriptionService {
     });
 
     // Create POS order for subscription renewal
+    this.logger.log(
+      `Creating POS order for subscription renewal: ${result.id}`,
+    );
     try {
-      await this.integrationService.createOrderFromSubscription(
-        result.id,
-        true,
+      const posOrder =
+        await this.integrationService.createOrderFromSubscription(
+          result.id,
+          true,
+        );
+      this.logger.log(
+        `POS order created successfully for renewal: ${posOrder.id}`,
       );
     } catch (error) {
-      console.error(
-        'Failed to create POS order for subscription renewal:',
-        error,
+      this.logger.error(
+        `Failed to create POS order for subscription renewal: ${error.message}`,
+        error.stack,
       );
       // Don't fail the renewal if POS integration fails
     }
 
     // Send SMS for subscription renewal
+    this.logger.log(
+      `Checking SMS eligibility for renewal, number: ${result.customer.mobileNumber}`,
+    );
     if (
       result.customer.mobileNumber.startsWith('077') ||
       result.customer.mobileNumber.startsWith('078')
     ) {
       const renewalMessage = `Your ${result.subscription.name} subscription has been renewed successfully! Your services are reset and ready to use. Thank you for choosing RADIANT!`;
+      this.logger.log(
+        `Sending renewal SMS to: ${result.customer.mobileNumber}`,
+      );
       await this.sendSMS(result.customer.mobileNumber, renewalMessage);
+    } else {
+      this.logger.log(
+        `SMS not sent for renewal - number ${result.customer.mobileNumber} does not start with 077 or 078`,
+      );
     }
 
     return {
