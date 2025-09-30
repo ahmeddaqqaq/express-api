@@ -170,18 +170,22 @@ export class TransactionService {
     }
 
     // Create POS integration order after transaction creation
+    this.logger.log(`Creating POS order for transaction: ${transaction.id}`);
     try {
       const posOrder = await this.integrationService.createOrderFromTransaction(
         transaction.id,
       );
       const orderData = posOrder.data as any;
       this.logger.log(
-        `POS order created for transaction ${transaction.id} with order number: ${orderData.orderNumber}`,
+        `POS order created successfully for transaction: ${posOrder.id}`,
+      );
+      this.logger.log(
+        `Transaction POS order details - Order Number: ${orderData.orderNumber}, Total: ${orderData.price?.totalPrice}`,
       );
     } catch (error) {
       this.logger.error(
-        `Failed to create POS order for transaction ${transaction.id}:`,
-        error.message,
+        `Failed to create POS order for transaction ${transaction.id}: ${error.message}`,
+        error.stack,
       );
     }
 

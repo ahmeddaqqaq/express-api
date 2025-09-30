@@ -328,7 +328,10 @@ export class SubscriptionService {
 
     // Create POS order for subscription purchase
     this.logger.log(
-      `Creating POS order for subscription: ${customerSubscription.id}`,
+      `Creating POS order for subscription purchase: ${customerSubscription.id}`,
+    );
+    this.logger.log(
+      `Subscription data for POS: Customer: ${customerSubscription.customer.fName} ${customerSubscription.customer.lName}, Car: ${customerSubscription.car.plateNumber}, Total: ${customerSubscription.totalPrice}`,
     );
     try {
       const posOrder =
@@ -337,6 +340,14 @@ export class SubscriptionService {
           false,
         );
       this.logger.log(`POS order created successfully: ${posOrder.id}`);
+      const orderData = posOrder.data as any;
+      this.logger.log(
+        `Subscription POS order details - Order Number: ${
+          orderData.orderNumber
+        }, Total: ${orderData.price?.totalPrice}, Products: ${JSON.stringify(
+          orderData.products,
+        )}`,
+      );
     } catch (error) {
       this.logger.error(
         `Failed to create POS order for subscription purchase: ${error.message}`,
@@ -1289,6 +1300,9 @@ export class SubscriptionService {
     this.logger.log(
       `Creating POS order for subscription renewal: ${result.id}`,
     );
+    this.logger.log(
+      `Renewal data for POS: Customer: ${result.customer.fName} ${result.customer.lName}, Car: ${result.car.plateNumber}, Subscription: ${result.subscription.name}`,
+    );
     try {
       const posOrder =
         await this.integrationService.createOrderFromSubscription(
@@ -1297,6 +1311,14 @@ export class SubscriptionService {
         );
       this.logger.log(
         `POS order created successfully for renewal: ${posOrder.id}`,
+      );
+      const orderData = posOrder.data as any;
+      this.logger.log(
+        `Subscription renewal POS order details - Order Number: ${
+          orderData.orderNumber
+        }, Total: ${orderData.price?.totalPrice}, Products: ${JSON.stringify(
+          orderData.products,
+        )}`,
       );
     } catch (error) {
       this.logger.error(
