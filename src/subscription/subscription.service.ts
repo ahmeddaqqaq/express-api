@@ -350,6 +350,7 @@ export class SubscriptionService {
       `Checking SMS eligibility for number: ${customerSubscription.customer.mobileNumber}`,
     );
     if (
+      customerSubscription.customer.mobileNumber.startsWith('079') ||
       customerSubscription.customer.mobileNumber.startsWith('077') ||
       customerSubscription.customer.mobileNumber.startsWith('078')
     ) {
@@ -1310,6 +1311,7 @@ export class SubscriptionService {
       `Checking SMS eligibility for renewal, number: ${result.customer.mobileNumber}`,
     );
     if (
+      result.customer.mobileNumber.startsWith('079') ||
       result.customer.mobileNumber.startsWith('077') ||
       result.customer.mobileNumber.startsWith('078')
     ) {
