@@ -22,6 +22,11 @@ import {
   CashSummary,
   UserSalesReport,
 } from './models/daily-report.dto';
+import { CardStatsResponse, CompletionRatioResponse } from './models/response';
+import { SubscriptionStatisticsResponse } from './models/subscription-statistics.response';
+import { DailySubscriptionRevenueResponse } from './models/subscription-revenue.response';
+import { SubscriptionServicesUsageResponse } from './models/subscription-services-usage.response';
+import { UserAddOnSalesResponse } from './models/user-addon-sales.response';
 
 @Injectable()
 export class StatisticsService {
@@ -78,7 +83,9 @@ export class StatisticsService {
     return { start, end };
   }
 
-  async getDashboardStatistics(filter?: StatsFilterDto) {
+  async getDashboardStatistics(
+    filter?: StatsFilterDto,
+  ): Promise<CardStatsResponse> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -149,7 +156,9 @@ export class StatisticsService {
     };
   }
 
-  async serviceCompletion(filter?: StatsFilterDto) {
+  async serviceCompletion(
+    filter?: StatsFilterDto,
+  ): Promise<CompletionRatioResponse> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -525,7 +534,9 @@ export class StatisticsService {
     return bottleneckData.sort((a, b) => b.bottleneckScore - a.bottleneckScore);
   }
 
-  async getUserAddOnSales(filter?: StatsFilterDto) {
+  async getUserAddOnSales(
+    filter?: StatsFilterDto,
+  ): Promise<UserAddOnSalesResponse[]> {
     const { start, end } = filter
       ? this.getDateRange(filter)
       : {
@@ -832,5 +843,199 @@ export class StatisticsService {
       },
     });
     return count;
+  }
+
+  async getSubscriptionStatistics(
+    filter?: StatsFilterDto,
+  ): Promise<SubscriptionStatisticsResponse> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: this.getEndOfDayUTC3(new Date()),
+        };
+
+    const totalSubscriptions = await this.prisma.customerSubscription.count({
+      where: {
+        purchaseDate: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    const activeSubscriptions = await this.prisma.customerSubscription.count({
+      where: {
+        isActive: true,
+        purchaseDate: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    const activatedSubscriptions = await this.prisma.customerSubscription.count(
+      {
+        where: {
+          activationDate: {
+            not: null,
+          },
+          purchaseDate: {
+            gte: start,
+            lte: end,
+          },
+        },
+      },
+    );
+
+    const expiredSubscriptions = await this.prisma.customerSubscription.count({
+      where: {
+        expiryDate: {
+          lt: new Date(),
+        },
+        purchaseDate: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    return {
+      totalSubscriptions,
+      activeSubscriptions,
+      activatedSubscriptions,
+      expiredSubscriptions,
+      pendingActivation: totalSubscriptions - activatedSubscriptions,
+    };
+  }
+
+  async getDailySubscriptionRevenue(
+    filter?: StatsFilterDto,
+  ): Promise<DailySubscriptionRevenueResponse[]> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: this.getEndOfDayUTC3(new Date()),
+        };
+
+    const subscriptions = await this.prisma.customerSubscription.findMany({
+      where: {
+        purchaseDate: {
+          gte: start,
+          lte: end,
+        },
+      },
+      select: {
+        purchaseDate: true,
+        totalPrice: true,
+      },
+    });
+
+    const dailyRevenue = new Map<string, number>();
+
+    subscriptions.forEach((subscription) => {
+      const date = subscription.purchaseDate.toISOString().split('T')[0];
+      dailyRevenue.set(
+        date,
+        (dailyRevenue.get(date) || 0) + subscription.totalPrice,
+      );
+    });
+
+    return Array.from(dailyRevenue.entries())
+      .map(([date, revenue]) => ({
+        date,
+        revenue,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getSubscriptionServicesUsage(
+    filter?: StatsFilterDto,
+  ): Promise<SubscriptionServicesUsageResponse[]> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: this.getEndOfDayUTC3(new Date()),
+        };
+
+    const subscriptionServices = await this.prisma.subscriptionService.findMany(
+      {
+        include: {
+          service: true,
+          subscription: {
+            include: {
+              customerSubscriptions: {
+                where: {
+                  purchaseDate: {
+                    gte: start,
+                    lte: end,
+                  },
+                },
+                include: {
+                  usageRecords: {
+                    where: {
+                      createdAt: {
+                        gte: start,
+                        lte: end,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    );
+
+    const servicesUsageMap = new Map<
+      string,
+      {
+        serviceId: string;
+        serviceName: string;
+        totalAllocated: number;
+        totalUsed: number;
+        totalUnused: number;
+        subscriptionCount: number;
+      }
+    >();
+
+    subscriptionServices.forEach((subService) => {
+      const serviceKey = subService.serviceId;
+
+      if (!servicesUsageMap.has(serviceKey)) {
+        servicesUsageMap.set(serviceKey, {
+          serviceId: subService.serviceId,
+          serviceName: subService.service.name,
+          totalAllocated: 0,
+          totalUsed: 0,
+          totalUnused: 0,
+          subscriptionCount: 0,
+        });
+      }
+
+      const serviceEntry = servicesUsageMap.get(serviceKey)!;
+
+      subService.subscription.customerSubscriptions.forEach((customerSub) => {
+        serviceEntry.subscriptionCount += 1;
+        serviceEntry.totalAllocated += subService.usageCount;
+
+        const usedCount = customerSub.usageRecords.filter(
+          (record) => record.serviceId === subService.serviceId,
+        ).length;
+
+        serviceEntry.totalUsed += usedCount;
+        serviceEntry.totalUnused += Math.max(
+          0,
+          subService.usageCount - usedCount,
+        );
+      });
+    });
+
+    return Array.from(servicesUsageMap.values()).sort(
+      (a, b) => b.totalAllocated - a.totalAllocated,
+    );
   }
 }

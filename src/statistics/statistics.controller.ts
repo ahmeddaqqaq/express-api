@@ -11,6 +11,11 @@ import {
   ServiceStageBottleneckResponse,
 } from './models/operational-insights.response';
 import { DailyReportResponseDto } from './models/daily-report.dto';
+import { SubscriptionStatisticsResponse } from './models/subscription-statistics.response';
+import { DailySubscriptionRevenueResponse } from './models/subscription-revenue.response';
+import { SubscriptionServicesUsageResponse } from './models/subscription-services-usage.response';
+import { UserAddOnSalesResponse } from './models/user-addon-sales.response';
+import { CustomerVisitsResponse } from './models/customer-visits.response';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -35,7 +40,9 @@ export class StatisticsController {
     type: CardStatsResponse,
   })
   @Get('cardStats')
-  async getCardStats(@Query() filter: StatsFilterDto) {
+  async getCardStats(
+    @Query() filter: StatsFilterDto,
+  ): Promise<CardStatsResponse> {
     return await this.statisticsService.getDashboardStatistics(filter);
   }
 
@@ -52,7 +59,9 @@ export class StatisticsController {
     type: CompletionRatioResponse,
   })
   @Get('completionRatios')
-  async getRatio(@Query() filter: StatsFilterDto) {
+  async getRatio(
+    @Query() filter: StatsFilterDto,
+  ): Promise<CompletionRatioResponse> {
     return await this.statisticsService.serviceCompletion(filter);
   }
 
@@ -69,7 +78,9 @@ export class StatisticsController {
     type: RevenueSummary,
   })
   @Get('revenue')
-  async getRevenueStatistics(@Query() filter: StatsFilterDto) {
+  async getRevenueStatistics(
+    @Query() filter: StatsFilterDto,
+  ): Promise<RevenueSummary> {
     return await this.statisticsService.getRevenueStatistics(filter);
   }
 
@@ -95,7 +106,7 @@ export class StatisticsController {
   async getTopCustomers(
     @Query() filter: StatsFilterDto,
     @Query('limit') limit = 5,
-  ) {
+  ): Promise<TopCustomer[]> {
     return await this.statisticsService.getTopCustomers(filter, limit);
   }
 
@@ -112,7 +123,9 @@ export class StatisticsController {
     type: PeakAnalysisResponse,
   })
   @Get('peakAnalysis')
-  async getPeakAnalysis(@Query() filter: StatsFilterDto) {
+  async getPeakAnalysis(
+    @Query() filter: StatsFilterDto,
+  ): Promise<PeakAnalysisResponse> {
     return await this.statisticsService.getPeakAnalysis(filter);
   }
 
@@ -129,7 +142,9 @@ export class StatisticsController {
     type: [TechnicianUtilizationResponse],
   })
   @Get('technicianUtilization')
-  async getTechnicianUtilization(@Query() filter: StatsFilterDto) {
+  async getTechnicianUtilization(
+    @Query() filter: StatsFilterDto,
+  ): Promise<TechnicianUtilizationResponse[]> {
     return await this.statisticsService.getTechnicianUtilization(filter);
   }
 
@@ -146,25 +161,16 @@ export class StatisticsController {
     type: [ServiceStageBottleneckResponse],
   })
   @Get('stageBottlenecks')
-  async getServiceStageBottlenecks(@Query() filter: StatsFilterDto) {
+  async getServiceStageBottlenecks(
+    @Query() filter: StatsFilterDto,
+  ): Promise<ServiceStageBottleneckResponse[]> {
     return await this.statisticsService.getServiceStageBottlenecks(filter);
   }
 
   @ApiResponse({
     status: 200,
     description: 'Returns user add-on sales statistics',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          userId: { type: 'string' },
-          userName: { type: 'string' },
-          totalAddOnRevenue: { type: 'number' },
-          addOnCount: { type: 'number' },
-        },
-      },
-    },
+    type: [UserAddOnSalesResponse],
   })
   @ApiResponse({
     status: '4XX',
@@ -178,7 +184,9 @@ export class StatisticsController {
     },
   })
   @Get('userAddOnSales')
-  async getUserAddOnSales(@Query() filter: StatsFilterDto) {
+  async getUserAddOnSales(
+    @Query() filter: StatsFilterDto,
+  ): Promise<UserAddOnSalesResponse[]> {
     return await this.statisticsService.getUserAddOnSales(filter);
   }
 
@@ -207,7 +215,9 @@ export class StatisticsController {
     example: '2023-12-01',
   })
   @Get('dailyReport')
-  async getDailyReport(@Query('date') date: string) {
+  async getDailyReport(
+    @Query('date') date: string,
+  ): Promise<DailyReportResponseDto> {
     return await this.statisticsService.getDailyReport(date);
   }
 
@@ -283,13 +293,7 @@ export class StatisticsController {
   @ApiResponse({
     status: 200,
     description: 'Returns number of completed visits for a specific customer',
-    schema: {
-      type: 'object',
-      properties: {
-        customerId: { type: 'string' },
-        visitCount: { type: 'number' },
-      },
-    },
+    type: CustomerVisitsResponse,
   })
   @ApiResponse({
     status: '4XX',
@@ -303,11 +307,87 @@ export class StatisticsController {
     },
   })
   @Get('customer/:customerId/visits')
-  async getNumberOfVisitsPerCustomer(@Param('customerId') customerId: string) {
-    const count = await this.statisticsService.numberOfVisitsPerCustomer(customerId);
+  async getNumberOfVisitsPerCustomer(
+    @Param('customerId') customerId: string,
+  ): Promise<CustomerVisitsResponse> {
+    const count = await this.statisticsService.numberOfVisitsPerCustomer(
+      customerId,
+    );
     return {
       customerId,
       visitCount: count,
     };
+  }
+
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns subscription statistics including total, active, activated, and expired counts',
+    type: SubscriptionStatisticsResponse,
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('subscriptions/stats')
+  async getSubscriptionStatistics(
+    @Query() filter: StatsFilterDto,
+  ): Promise<SubscriptionStatisticsResponse> {
+    return await this.statisticsService.getSubscriptionStatistics(filter);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns daily subscription revenue data with date and revenue amount',
+    type: [DailySubscriptionRevenueResponse],
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('subscriptions/daily-revenue')
+  async getDailySubscriptionRevenue(
+    @Query() filter: StatsFilterDto,
+  ): Promise<DailySubscriptionRevenueResponse[]> {
+    return await this.statisticsService.getDailySubscriptionRevenue(filter);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns subscription services usage statistics showing allocated, used, and unused counts',
+    type: [SubscriptionServicesUsageResponse],
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('subscriptions/services-usage')
+  async getSubscriptionServicesUsage(
+    @Query() filter: StatsFilterDto,
+  ): Promise<SubscriptionServicesUsageResponse[]> {
+    return await this.statisticsService.getSubscriptionServicesUsage(filter);
   }
 }

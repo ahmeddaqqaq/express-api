@@ -8,10 +8,7 @@ export class CardStatsResponse {
   completedTransactions: number;
 
   @ApiProperty()
-  newCustomersToday: number;
-
-  @ApiProperty()
-  completedTransactionsToday: number;
+  newCustomers: number;
 
   @ApiProperty()
   scheduledTransactions: number;
