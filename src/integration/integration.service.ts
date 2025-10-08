@@ -2,7 +2,6 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, TransactionStatus } from '@prisma/client';
@@ -10,7 +9,6 @@ import { Prisma, TransactionStatus } from '@prisma/client';
 @Injectable()
 export class IntegrationService {
   constructor(private readonly prisma: PrismaService) {}
-  private readonly logger = new Logger(IntegrationService.name);
   lastValue = 0;
   uniqueInt32() {
     const base = Math.floor((Date.now() % 1_000_000_000) / 10);
@@ -154,27 +152,15 @@ export class IntegrationService {
   }
 
   async findMany() {
-    // Get all POS orders for non-completed and non-cancelled transactions AND unpulled subscriptions
+    // Get all POS orders for non-completed and non-cancelled transactions
     const posOrders = await this.prisma.posOrder.findMany({
       where: {
-        OR: [
-          // Transaction orders that are not paid and not cancelled
-          {
-            transaction: {
-              isPaid: false,
-              status: {
-                notIn: [TransactionStatus.cancelled as TransactionStatus],
-              },
-            },
+        transaction: {
+          isPaid: false,
+          status: {
+            notIn: [TransactionStatus.cancelled as TransactionStatus],
           },
-          // Subscription orders that are not pulled
-          {
-            customerSubscription: {
-              isPulled: false,
-              isActive: true,
-            },
-          },
-        ],
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -248,7 +234,6 @@ export class IntegrationService {
       },
       include: {
         transaction: true,
-        customerSubscription: true,
       },
     });
 
@@ -256,304 +241,34 @@ export class IntegrationService {
       throw new NotFoundException('Order not found');
     }
 
-    // Handle transaction order
-    if (posOrder.transaction) {
-      const transaction = posOrder.transaction;
+    const transaction = posOrder.transaction;
 
-      // Check if already pulled
-      if (transaction.isPulled) {
-        throw new BadRequestException(
-          'Transaction is already marked as pulled',
-        );
-      }
-
-      // Update transaction to mark as pulled
-      const updatedTransaction = await this.prisma.transaction.update({
-        where: { id: transaction.id },
-        data: { isPulled: true },
-        include: {
-          customer: true,
-          car: {
-            include: {
-              brand: true,
-              model: true,
-            },
-          },
-          service: true,
-          addOns: true,
-          createdByUser: true,
-        },
-      });
-
-      return {
-        message: 'Transaction marked as pulled successfully',
-        transaction: updatedTransaction,
-      };
+    // Check if already pulled
+    if (transaction.isPulled) {
+      throw new BadRequestException('Transaction is already marked as pulled');
     }
 
-    // Handle subscription order
-    if (posOrder.customerSubscription) {
-      const customerSubscription = posOrder.customerSubscription;
-
-      // Check if already pulled
-      if (customerSubscription.isPulled) {
-        throw new BadRequestException(
-          'Subscription is already marked as pulled',
-        );
-      }
-
-      // Update customer subscription to mark as pulled
-      const updatedSubscription = await this.prisma.customerSubscription.update(
-        {
-          where: { id: customerSubscription.id },
-          data: { isPulled: true },
+    // Update transaction to mark as pulled
+    const updatedTransaction = await this.prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { isPulled: true },
+      include: {
+        customer: true,
+        car: {
           include: {
-            customer: true,
-            car: {
-              include: {
-                brand: true,
-                model: true,
-              },
-            },
-            subscription: true,
+            brand: true,
+            model: true,
           },
         },
-      );
-
-      return {
-        message: 'Subscription marked as pulled successfully',
-        customerSubscription: updatedSubscription,
-      };
-    }
-
-    throw new BadRequestException(
-      'Order has no associated transaction or subscription',
-    );
-  }
-
-  async createOrderFromSubscription(
-    customerSubscriptionId: string,
-    isRenewal: boolean = false,
-  ) {
-    this.logger.log(
-      `Creating order for subscription: ${customerSubscriptionId}, isRenewal: ${isRenewal}`,
-    );
-
-    // Check if POS order already exists for this subscription
-    const existingPosOrder = await this.prisma.posOrder.findUnique({
-      where: { customerSubscriptionId },
-    });
-
-    this.logger.log(
-      `Existing POS order found: ${existingPosOrder ? 'YES' : 'NO'}`,
-    );
-
-    // For renewals, update the existing order data
-    if (existingPosOrder && isRenewal) {
-      // Get the customer subscription data for renewal
-      const customerSubscription =
-        await this.prisma.customerSubscription.findUnique({
-          where: { id: customerSubscriptionId },
-          include: {
-            customer: true,
-            car: {
-              include: {
-                brand: true,
-                model: true,
-              },
-            },
-            subscription: {
-              include: {
-                subscriptionPrices: true,
-              },
-            },
-          },
-        });
-
-      if (!customerSubscription) {
-        throw new Error(
-          `Customer subscription with ID ${customerSubscriptionId} not found`,
-        );
-      }
-
-      // Get the subscription price for the specific car type
-      const subscriptionPrice =
-        customerSubscription.subscription.subscriptionPrices.find(
-          (price) => price.carType === customerSubscription.car.model.type,
-        );
-
-      if (!subscriptionPrice) {
-        throw new Error(
-          `No price found for subscription ${customerSubscription.subscription.name} and car type ${customerSubscription.car.model.type}`,
-        );
-      }
-
-      // Create renewal order data
-      const products = [
-        {
-          id: subscriptionPrice.posServiceId,
-          note: null,
-          count: 1,
-          taxValue: 0,
-          taxPercent: 16,
-          discountValue: 0,
-          originalPrice: customerSubscription.totalPrice / 1.16,
-          priceAfterTax: customerSubscription.totalPrice,
-          selleingPrice: customerSubscription.totalPrice,
-        },
-      ];
-
-      const totalPrice = products.reduce(
-        (sum, product) => sum + product.selleingPrice,
-        0,
-      );
-      const orderNumber = this.uniqueInt32();
-
-      const renewalData = {
-        price: {
-          priceMode: null,
-          totalPrice: totalPrice,
-          servicefee: 0,
-          discountType: 'Discount_promo',
-          orderPayment: 'Cash',
-          deliveryPrice: 0,
-          totalDiscount: 0,
-        },
-        menuId: '5',
-        branchId: 1,
-        isPickup: false,
-        products: products,
-        orderNote: 'No Notes',
-        OrderHastag: null,
-        orderNumber: orderNumber,
-        orderSourceName: 'Radiant_App',
-        orderCompanyPhone: customerSubscription.customer.mobileNumber,
-        carName: `${customerSubscription.car.brand.name} ${
-          customerSubscription.car.model.name
-        } (${customerSubscription.car.color ?? 'No Color'})`,
-        orderCompanyCustomer: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
-        plateNumber: customerSubscription.car.plateNumber,
-      };
-
-      // Update the existing POS order with renewal data
-      const updatedPosOrder = await this.prisma.posOrder.update({
-        where: { id: existingPosOrder.id },
-        data: { data: renewalData },
-      });
-
-      return updatedPosOrder;
-    }
-
-    // For purchases, return existing order if found
-    if (existingPosOrder) {
-      this.logger.log(`Returning existing POS order: ${existingPosOrder.id}`);
-      return existingPosOrder;
-    }
-
-    this.logger.log(`Creating new POS order for subscription purchase`);
-
-    // Get the customer subscription with all related data
-    const customerSubscription =
-      await this.prisma.customerSubscription.findUnique({
-        where: { id: customerSubscriptionId },
-        include: {
-          customer: true,
-          car: {
-            include: {
-              brand: true,
-              model: true,
-            },
-          },
-          subscription: {
-            include: {
-              subscriptionPrices: true,
-            },
-          },
-        },
-      });
-
-    if (!customerSubscription) {
-      throw new Error(
-        `Customer subscription with ID ${customerSubscriptionId} not found`,
-      );
-    }
-
-    // Get the subscription price for the specific car type
-    const subscriptionPrice =
-      customerSubscription.subscription.subscriptionPrices.find(
-        (price) => price.carType === customerSubscription.car.model.type,
-      );
-
-    if (!subscriptionPrice) {
-      throw new Error(
-        `No price found for subscription ${customerSubscription.subscription.name} and car type ${customerSubscription.car.model.type}`,
-      );
-    }
-
-    const products = [];
-
-    // Add the subscription as a product using car-type specific posServiceId
-    products.push({
-      id: subscriptionPrice.posServiceId,
-      note: null,
-      count: 1,
-      taxValue: 0,
-      taxPercent: 16,
-      discountValue: 0,
-      originalPrice: customerSubscription.totalPrice / 1.16,
-      priceAfterTax: customerSubscription.totalPrice,
-      selleingPrice: customerSubscription.totalPrice,
-    });
-
-    // Calculate total price
-    const totalPrice = products.reduce(
-      (sum, product) => sum + product.selleingPrice,
-      0,
-    );
-
-    const orderNumber = this.uniqueInt32();
-
-    // Create the exact response format
-    const responseData = {
-      price: {
-        priceMode: null,
-        totalPrice: totalPrice,
-        servicefee: 0,
-        discountType: 'Discount_promo',
-        orderPayment: 'Cash',
-        deliveryPrice: 0,
-        totalDiscount: 0,
+        service: true,
+        addOns: true,
+        createdByUser: true,
       },
-      menuId: '5',
-      branchId: 1,
-      isPickup: false,
-      products: products,
-      orderNote: 'No Notes',
-      OrderHastag: null,
-      orderNumber: orderNumber,
-      orderSourceName: 'Radiant_App',
-      orderCompanyPhone: customerSubscription.customer.mobileNumber,
-      carName: `${customerSubscription.car.brand.name} ${
-        customerSubscription.car.model.name
-      } (${customerSubscription.car.color ?? 'No Color'})`,
-      orderCompanyCustomer: `${customerSubscription.customer.fName} ${customerSubscription.customer.lName}`,
-      plateNumber: customerSubscription.car.plateNumber,
+    });
+
+    return {
+      message: 'Transaction marked as pulled successfully',
+      transaction: updatedTransaction,
     };
-
-    // Save POS order to database
-    this.logger.log(
-      `Saving POS order to database for subscription: ${customerSubscriptionId}`,
-    );
-    this.logger.log(`Order data: ${JSON.stringify(responseData, null, 2)}`);
-
-    const posOrder = await this.prisma.posOrder.create({
-      data: {
-        customerSubscriptionId,
-        data: responseData,
-      },
-    });
-
-    this.logger.log(`POS order created successfully with ID: ${posOrder.id}`);
-    return posOrder;
   }
 }
