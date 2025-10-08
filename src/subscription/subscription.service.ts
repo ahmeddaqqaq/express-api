@@ -6,7 +6,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { IntegrationService } from '../integration/integration.service';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -22,10 +21,7 @@ import axios from 'axios';
 
 @Injectable()
 export class SubscriptionService {
-  constructor(
-    private prisma: PrismaService,
-    private integrationService: IntegrationService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   logger = new Logger('SubscriptionService');
 
@@ -325,36 +321,6 @@ export class SubscriptionService {
         },
       },
     });
-
-    // Create POS order for subscription purchase
-    this.logger.log(
-      `Creating POS order for subscription purchase: ${customerSubscription.id}`,
-    );
-    this.logger.log(
-      `Subscription data for POS: Customer: ${customerSubscription.customer.fName} ${customerSubscription.customer.lName}, Car: ${customerSubscription.car.plateNumber}, Total: ${customerSubscription.totalPrice}`,
-    );
-    try {
-      const posOrder =
-        await this.integrationService.createOrderFromSubscription(
-          customerSubscription.id,
-          false,
-        );
-      this.logger.log(`POS order created successfully: ${posOrder.id}`);
-      const orderData = posOrder.data as any;
-      this.logger.log(
-        `Subscription POS order details - Order Number: ${
-          orderData.orderNumber
-        }, Total: ${orderData.price?.totalPrice}, Products: ${JSON.stringify(
-          orderData.products,
-        )}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create POS order for subscription purchase: ${error.message}`,
-        error.stack,
-      );
-      // Don't fail the subscription purchase if POS integration fails
-    }
 
     // Send SMS for subscription purchase
     this.logger.log(
@@ -1295,38 +1261,6 @@ export class SubscriptionService {
 
       return updatedSubscription;
     });
-
-    // Create POS order for subscription renewal
-    this.logger.log(
-      `Creating POS order for subscription renewal: ${result.id}`,
-    );
-    this.logger.log(
-      `Renewal data for POS: Customer: ${result.customer.fName} ${result.customer.lName}, Car: ${result.car.plateNumber}, Subscription: ${result.subscription.name}`,
-    );
-    try {
-      const posOrder =
-        await this.integrationService.createOrderFromSubscription(
-          result.id,
-          true,
-        );
-      this.logger.log(
-        `POS order created successfully for renewal: ${posOrder.id}`,
-      );
-      const orderData = posOrder.data as any;
-      this.logger.log(
-        `Subscription renewal POS order details - Order Number: ${
-          orderData.orderNumber
-        }, Total: ${orderData.price?.totalPrice}, Products: ${JSON.stringify(
-          orderData.products,
-        )}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to create POS order for subscription renewal: ${error.message}`,
-        error.stack,
-      );
-      // Don't fail the renewal if POS integration fails
-    }
 
     // Send SMS for subscription renewal
     this.logger.log(
