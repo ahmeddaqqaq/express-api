@@ -20,13 +20,13 @@ export class RefreshTokenMiddleware implements NestMiddleware {
     if (!accessToken && refreshToken) {
       try {
         const newTokens = await this.authService.refreshTokens(refreshToken);
-        
+
         // Set new cookies
         res.cookie('access_token', newTokens.access_token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 15 * 60 * 1000, // 15 minutes
+          maxAge: 10 * 24 * 60 * 60 * 1000,
           path: '/',
         });
 
@@ -34,7 +34,7 @@ export class RefreshTokenMiddleware implements NestMiddleware {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          maxAge: 7 * 24 * 60 * 60 * 1000,
           path: '/',
         });
 
@@ -60,16 +60,18 @@ export class RefreshTokenMiddleware implements NestMiddleware {
       try {
         // Decode the access token to check expiration (without verification to avoid throwing on expired tokens)
         const decoded = this.jwtService.decode(accessToken) as any;
-        
+
         if (decoded && decoded.exp) {
           const now = Math.floor(Date.now() / 1000);
           const timeUntilExpiry = decoded.exp - now;
-          
+
           // If token is expired or expires in less than 5 minutes, refresh it
           if (timeUntilExpiry <= 0 || timeUntilExpiry < 300) {
             try {
-              const newTokens = await this.authService.refreshTokens(refreshToken);
-              
+              const newTokens = await this.authService.refreshTokens(
+                refreshToken,
+              );
+
               // Set new cookies
               res.cookie('access_token', newTokens.access_token, {
                 httpOnly: true,
@@ -116,8 +118,10 @@ export class RefreshTokenMiddleware implements NestMiddleware {
         // If token decode fails, try to refresh using refresh token
         if (refreshToken) {
           try {
-            const newTokens = await this.authService.refreshTokens(refreshToken);
-            
+            const newTokens = await this.authService.refreshTokens(
+              refreshToken,
+            );
+
             // Set new cookies
             res.cookie('access_token', newTokens.access_token, {
               httpOnly: true,
