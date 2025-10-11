@@ -27,6 +27,7 @@ import { SubscriptionStatisticsResponse } from './models/subscription-statistics
 import { DailySubscriptionRevenueResponse } from './models/subscription-revenue.response';
 import { SubscriptionServicesUsageResponse } from './models/subscription-services-usage.response';
 import { UserAddOnSalesResponse } from './models/user-addon-sales.response';
+import { ServiceCarTypeRevenueResponse } from './models/service-cartype-revenue.response';
 
 @Injectable()
 export class StatisticsService {
@@ -1036,6 +1037,108 @@ export class StatisticsService {
 
     return Array.from(servicesUsageMap.values()).sort(
       (a, b) => b.totalAllocated - a.totalAllocated,
+    );
+  }
+
+  async getNewCustomers(filter?: StatsFilterDto): Promise<
+    Array<{
+      id: string;
+      fName: string;
+      lName: string;
+      mobileNumber: string;
+      createdAt: Date;
+    }>
+  > {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: this.getEndOfDayUTC3(new Date()),
+        };
+
+    const newCustomers = await this.prisma.customer.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      select: {
+        id: true,
+        fName: true,
+        lName: true,
+        mobileNumber: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return newCustomers;
+  }
+
+  async getServiceCarTypeRevenue(
+    filter?: StatsFilterDto,
+  ): Promise<ServiceCarTypeRevenueResponse[]> {
+    const { start, end } = filter
+      ? this.getDateRange(filter)
+      : {
+          start: new Date(0),
+          end: this.getEndOfDayUTC3(new Date()),
+        };
+
+    const completedTransactions = await this.prisma.transaction.findMany({
+      where: {
+        status: 'completed',
+        updatedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        service: true,
+        car: {
+          include: {
+            model: true,
+          },
+        },
+        invoice: true,
+      },
+    });
+
+    const serviceCarTypeMap = new Map<
+      string,
+      {
+        serviceId: string;
+        serviceName: string;
+        carType: string;
+        completedCount: number;
+        totalRevenue: number;
+      }
+    >();
+
+    for (const transaction of completedTransactions) {
+      const carType = transaction.car.model.type;
+      const key = `${transaction.serviceId}-${carType}`;
+
+      if (!serviceCarTypeMap.has(key)) {
+        serviceCarTypeMap.set(key, {
+          serviceId: transaction.serviceId,
+          serviceName: transaction.service.name,
+          carType: carType,
+          completedCount: 0,
+          totalRevenue: 0,
+        });
+      }
+
+      const entry = serviceCarTypeMap.get(key);
+      entry.completedCount += 1;
+      entry.totalRevenue += transaction.invoice?.totalAmount || 0;
+    }
+
+    return Array.from(serviceCarTypeMap.values()).sort(
+      (a, b) => b.totalRevenue - a.totalRevenue,
     );
   }
 }

@@ -139,6 +139,26 @@ export class SubscriptionController {
     return this.subscriptionService.getCustomerSubscriptions(customerId);
   }
 
+  @Delete('customer-subscription/:customerSubscriptionId')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Delete a customer subscription' })
+  @ApiResponse({
+    status: 200,
+    description: 'Customer subscription deleted successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Customer subscription not found',
+  })
+  async deleteCustomerSubscription(
+    @Param('customerSubscriptionId', ParseUUIDPipe)
+    customerSubscriptionId: string,
+  ) {
+    return this.subscriptionService.deleteCustomerSubscription(
+      customerSubscriptionId,
+    );
+  }
+
   @Post('use-service')
   @Roles('ADMIN', 'SUPERVISOR')
   @ApiOperation({ summary: 'Use a service from subscription via QR code' })

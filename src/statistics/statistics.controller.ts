@@ -16,6 +16,8 @@ import { DailySubscriptionRevenueResponse } from './models/subscription-revenue.
 import { SubscriptionServicesUsageResponse } from './models/subscription-services-usage.response';
 import { UserAddOnSalesResponse } from './models/user-addon-sales.response';
 import { CustomerVisitsResponse } from './models/customer-visits.response';
+import { NewCustomerResponse } from './models/new-customers.response';
+import { ServiceCarTypeRevenueResponse } from './models/service-cartype-revenue.response';
 import { JwtAuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
@@ -389,5 +391,53 @@ export class StatisticsController {
     @Query() filter: StatsFilterDto,
   ): Promise<SubscriptionServicesUsageResponse[]> {
     return await this.statisticsService.getSubscriptionServicesUsage(filter);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns new customers filtered by date range with their first name, last name, and mobile number',
+    type: [NewCustomerResponse],
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('newCustomers')
+  async getNewCustomers(
+    @Query() filter: StatsFilterDto,
+  ): Promise<NewCustomerResponse[]> {
+    return await this.statisticsService.getNewCustomers(filter);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns completed service revenue grouped by service and car type',
+    type: [ServiceCarTypeRevenueResponse],
+  })
+  @ApiResponse({
+    status: '4XX',
+    schema: {
+      type: 'object',
+      properties: {
+        error: {
+          type: 'string',
+        },
+      },
+    },
+  })
+  @Get('serviceCarTypeRevenue')
+  async getServiceCarTypeRevenue(
+    @Query() filter: StatsFilterDto,
+  ): Promise<ServiceCarTypeRevenueResponse[]> {
+    return await this.statisticsService.getServiceCarTypeRevenue(filter);
   }
 }

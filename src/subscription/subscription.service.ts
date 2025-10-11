@@ -814,10 +814,8 @@ export class SubscriptionService {
           carId: subscriptionInfo.car.id,
           serviceId,
           createdByUserId: usedById,
-          notes:
-            notes ||
-            `Service used via subscription: ${subscriptionInfo.subscription.name}`,
-          deliverTime: null, // Will be set when transaction is completed
+          notes: notes,
+          deliverTime: null,
         },
         include: {
           customer: true,
@@ -1329,6 +1327,38 @@ export class SubscriptionService {
       })),
       createdAt: subscription.createdAt,
       updatedAt: subscription.updatedAt,
+    };
+  }
+
+  async deleteCustomerSubscription(customerSubscriptionId: string) {
+    const customerSubscription =
+      await this.prisma.customerSubscription.findUnique({
+        where: { id: customerSubscriptionId },
+        include: {
+          qrCode: true,
+        },
+      });
+
+    if (!customerSubscription) {
+      throw new NotFoundException('Customer subscription not found');
+    }
+
+    // If there's a QR code assigned, deactivate it
+    if (customerSubscription.qrCodeId) {
+      await this.prisma.qRCode.update({
+        where: { id: customerSubscription.qrCodeId },
+        data: { isActive: false },
+      });
+    }
+
+    // Soft delete the customer subscription
+    await this.prisma.customerSubscription.update({
+      where: { id: customerSubscriptionId },
+      data: { isActive: false },
+    });
+
+    return {
+      message: 'Customer subscription deleted successfully',
     };
   }
 }
