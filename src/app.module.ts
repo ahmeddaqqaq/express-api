@@ -23,6 +23,7 @@ import { SalesModule } from './sales/sales.module';
 import { SalesRecordModule } from './sales-record/sales-record.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { DailyNoteModule } from './daily-note/daily-note.module';
+import { ReservationModule } from './reservation/reservation.module';
 import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
 
 @Module({
@@ -49,6 +50,7 @@ import { RefreshTokenMiddleware } from './auth/refresh-token.middleware';
     SalesRecordModule,
     SubscriptionModule,
     DailyNoteModule,
+    ReservationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

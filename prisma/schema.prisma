@@ -55,6 +55,7 @@ model Customer {
   updatedAt     DateTime               @updatedAt
   transactions  Transaction[]
   subscriptions CustomerSubscription[]
+  reservations  Reservation[]
 }
 
 model Car {
@@ -422,6 +423,22 @@ model DailyNote {
 
   // Relations
   images Image[] @relation("DailyNoteImages")
+}
+
+// Reservation model for customer bookings
+model Reservation {
+  id         String   @id @default(uuid())
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId String
+  datetime   DateTime
+  notes      String?
+  markAsDone Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([datetime])
 }
 
 enum AuditAction {
