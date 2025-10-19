@@ -78,12 +78,12 @@ export class AuthController {
   ) {
     const tokens = await this.authService.signup(signupDto);
 
-    // Set access token cookie (15 minutes)
+    // Set access token cookie (7 days)
     res.cookie('access_token', tokens.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
     });
 
@@ -140,12 +140,12 @@ export class AuthController {
   ) {
     const tokens = await this.authService.signin(signinDto);
 
-    // Set access token cookie (15 minutes)
+    // Set access token cookie (7 days)
     res.cookie('access_token', tokens.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
     });
 
