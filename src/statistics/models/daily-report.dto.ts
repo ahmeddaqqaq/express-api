@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsDateString } from 'class-validator';
 
 export class DailyReportRequestDto {
   @ApiProperty({
@@ -32,10 +32,16 @@ export class TechnicianShiftReport {
   @ApiProperty({ description: 'Total overtime in HH:MM:SS format' })
   totalOvertimeTime: string;
 
-  @ApiProperty({ description: 'Total working time (shift + overtime - break) in HH:MM:SS format' })
+  @ApiProperty({
+    description:
+      'Total working time (shift + overtime - break) in HH:MM:SS format',
+  })
   totalWorkingTime: string;
 
-  @ApiProperty({ description: 'Overtime compensation in dollars (overtime minutes * $0.025 per minute)' })
+  @ApiProperty({
+    description:
+      'Overtime compensation in dollars (overtime minutes * $0.025 per minute)',
+  })
   overtimeCompensation: number;
 
   @ApiProperty({ description: 'Whether technician worked on this date' })
@@ -49,7 +55,12 @@ export class CashSummary {
   @ApiProperty({ description: 'Total revenue from add-ons' })
   addOnsCash: number;
 
-  @ApiProperty({ description: 'Total cash (services + add-ons)' })
+  @ApiProperty({ description: 'Total revenue from subscriptions' })
+  subscriptionCash: number;
+
+  @ApiProperty({
+    description: 'Total cash (services + add-ons + subscriptions)',
+  })
   totalCash: number;
 
   @ApiProperty({ description: 'Number of completed transactions' })
@@ -66,19 +77,29 @@ export class UserSalesReport {
   @ApiProperty({ description: 'User role' })
   userRole: string;
 
-  @ApiProperty({ description: 'Services sold', type: 'object', properties: {
-    count: { type: 'number' },
-    total: { type: 'number' }
-  }})
+  @ApiProperty({
+    description: 'Services sold',
+    type: 'object',
+    properties: {
+      count: { type: 'number' },
+      total: { type: 'number' },
+    },
+  })
   services: { count: number; total: number };
 
-  @ApiProperty({ description: 'Add-ons sold', type: 'object', properties: {
-    count: { type: 'number' },
-    total: { type: 'number' }
-  }})
+  @ApiProperty({
+    description: 'Add-ons sold',
+    type: 'object',
+    properties: {
+      count: { type: 'number' },
+      total: { type: 'number' },
+    },
+  })
   addOns: { count: number; total: number };
 
-  @ApiProperty({ description: 'Sales commission from add-ons (5% of total add-on sales)' })
+  @ApiProperty({
+    description: 'Sales commission from add-ons (5% of total add-on sales)',
+  })
   addOnCommission: number;
 }
 
@@ -86,13 +107,19 @@ export class DailyReportResponseDto {
   @ApiProperty({ description: 'Report date' })
   date: string;
 
-  @ApiProperty({ description: 'Technician shift information', type: [TechnicianShiftReport] })
+  @ApiProperty({
+    description: 'Technician shift information',
+    type: [TechnicianShiftReport],
+  })
   technicianShifts: TechnicianShiftReport[];
 
   @ApiProperty({ description: 'Cash summary for the day', type: CashSummary })
   cashSummary: CashSummary;
 
-  @ApiProperty({ description: 'User sales for add-ons', type: [UserSalesReport] })
+  @ApiProperty({
+    description: 'User sales for add-ons',
+    type: [UserSalesReport],
+  })
   userSales: UserSalesReport[];
 
   @ApiProperty({ description: 'Report generation timestamp' })

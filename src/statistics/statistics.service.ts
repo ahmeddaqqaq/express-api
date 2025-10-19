@@ -775,11 +775,32 @@ export class StatisticsService {
       }
     }
 
-    const totalCash = servicesCash + addOnsCash;
+    // Get subscription revenue for the day
+    const subscriptionsForDay = await this.prisma.customerSubscription.findMany(
+      {
+        where: {
+          purchaseDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        select: {
+          totalPrice: true,
+        },
+      },
+    );
+
+    const subscriptionCash = subscriptionsForDay.reduce(
+      (sum, sub) => sum + sub.totalPrice,
+      0,
+    );
+
+    const totalCash = servicesCash + addOnsCash + subscriptionCash;
 
     const cashSummary: CashSummary = {
       servicesCash,
       addOnsCash,
+      subscriptionCash,
       totalCash,
       transactionCount: transactions.length, // Keep transaction count from actual transactions
     };
