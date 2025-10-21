@@ -18,11 +18,13 @@ model user {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  uploadedImages      Image[]
-  createdTransactions Transaction[]             @relation("CreatedByUser")
-  salesRecords        SalesRecord[]
-  usageRecords        SubscriptionUsageRecord[] @relation("ServiceUsedBy")
-  dailyNotes          DailyNote[]
+  uploadedImages          Image[]
+  createdTransactions     Transaction[]             @relation("CreatedByUser")
+  salesRecords            SalesRecord[]
+  usageRecords            SubscriptionUsageRecord[] @relation("ServiceUsedBy")
+  dailyNotes              DailyNote[]
+  purchasedSubscriptions  SubscriptionLog[]         @relation("PurchasedBy")
+  activatedSubscriptions  SubscriptionLog[]         @relation("ActivatedBy")
 }
 
 model Image {
@@ -356,8 +358,9 @@ model CustomerSubscription {
   updatedAt      DateTime     @updatedAt
 
   // Relations
-  usageRecords SubscriptionUsageRecord[]
-  posOrder     PosOrder?
+  usageRecords      SubscriptionUsageRecord[]
+  posOrder          PosOrder?
+  subscriptionLogs  SubscriptionLog[]
 
   @@unique([qrCodeId]) // Each QR code can only be linked to one active subscription
 }
@@ -375,6 +378,30 @@ model SubscriptionUsageRecord {
   notes                  String?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
+}
+
+// Log subscription purchase and activation events
+model SubscriptionLog {
+  id                     String               @id @default(uuid())
+  customerSubscription   CustomerSubscription @relation(fields: [customerSubscriptionId], references: [id])
+  customerSubscriptionId String
+  action                 SubscriptionAction // PURCHASED or ACTIVATED
+  purchasedBy            user?                @relation("PurchasedBy", fields: [purchasedById], references: [id])
+  purchasedById          String?
+  purchasedAt            DateTime?
+  activatedBy            user?                @relation("ActivatedBy", fields: [activatedById], references: [id])
+  activatedById          String?
+  activatedAt            DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  @@index([customerSubscriptionId])
+  @@index([action])
+}
+
+enum SubscriptionAction {
+  PURCHASED
+  ACTIVATED
 }
 
 enum TransactionStatus {

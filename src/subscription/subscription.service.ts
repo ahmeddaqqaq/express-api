@@ -229,7 +229,7 @@ export class SubscriptionService {
   }
 
   async purchaseSubscription(purchaseDto: PurchaseSubscriptionDto) {
-    const { customerId, carId, subscriptionId } = purchaseDto;
+    const { customerId, carId, subscriptionId, purchasedById } = purchaseDto;
 
     // Validate customer exists
     const customer = await this.prisma.customer.findUnique({
@@ -291,36 +291,63 @@ export class SubscriptionService {
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 30);
 
-    // Create customer subscription (without QR activation yet)
-    const customerSubscription = await this.prisma.customerSubscription.create({
-      data: {
-        customerId,
-        carId,
-        subscriptionId,
-        qrCodeId: null, // Will be set during activation
-        totalPrice: priceInfo.price,
-        expiryDate,
-      },
-      include: {
-        customer: true,
-        car: {
-          include: {
-            brand: true,
-            model: true,
-          },
+    // Validate user exists if provided
+    if (purchasedById) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: purchasedById },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+    }
+
+    // Create customer subscription and log in a transaction
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Create customer subscription (without QR activation yet)
+      const customerSubscription = await prisma.customerSubscription.create({
+        data: {
+          customerId,
+          carId,
+          subscriptionId,
+          qrCodeId: null, // Will be set during activation
+          totalPrice: priceInfo.price,
+          expiryDate,
         },
-        subscription: {
-          include: {
-            subscriptionServices: {
-              include: {
-                service: true,
-              },
+        include: {
+          customer: true,
+          car: {
+            include: {
+              brand: true,
+              model: true,
             },
-            subscriptionPrices: true,
+          },
+          subscription: {
+            include: {
+              subscriptionServices: {
+                include: {
+                  service: true,
+                },
+              },
+              subscriptionPrices: true,
+            },
           },
         },
-      },
+      });
+
+      // Create subscription log for purchase
+      await prisma.subscriptionLog.create({
+        data: {
+          customerSubscriptionId: customerSubscription.id,
+          action: 'PURCHASED',
+          purchasedById,
+          purchasedAt: new Date(),
+        },
+      });
+
+      return customerSubscription;
     });
+
+    const customerSubscription = result;
 
     // Send SMS for subscription purchase
     this.logger.log(
@@ -370,7 +397,7 @@ export class SubscriptionService {
   }
 
   async activateSubscription(activateDto: ActivateSubscriptionDto) {
-    const { customerSubscriptionId, qrCodeId } = activateDto;
+    const { customerSubscriptionId, qrCodeId, activatedById } = activateDto;
 
     // Check if customer subscription exists and is not already activated
     const customerSubscription =
@@ -427,34 +454,59 @@ export class SubscriptionService {
       );
     }
 
-    // Activate the subscription
-    const activatedSubscription = await this.prisma.customerSubscription.update(
-      {
-        where: { id: customerSubscriptionId },
-        data: {
-          qrCodeId,
-          activationDate: new Date(),
-        },
-        include: {
-          qrCode: true,
-          subscription: {
-            include: {
-              subscriptionServices: {
-                include: {
-                  service: true,
+    // Validate user exists if provided
+    if (activatedById) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: activatedById },
+      });
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+    }
+
+    // Activate the subscription and create log in a transaction
+    const activatedSubscription = await this.prisma.$transaction(
+      async (prisma) => {
+        // Activate the subscription
+        const subscription = await prisma.customerSubscription.update({
+          where: { id: customerSubscriptionId },
+          data: {
+            qrCodeId,
+            activationDate: new Date(),
+          },
+          include: {
+            qrCode: true,
+            subscription: {
+              include: {
+                subscriptionServices: {
+                  include: {
+                    service: true,
+                  },
                 },
               },
             },
           },
-        },
+        });
+
+        // Update QR code status
+        await prisma.qRCode.update({
+          where: { id: qrCodeId },
+          data: { isActive: true },
+        });
+
+        // Create subscription log for activation
+        await prisma.subscriptionLog.create({
+          data: {
+            customerSubscriptionId,
+            action: 'ACTIVATED',
+            activatedById,
+            activatedAt: new Date(),
+          },
+        });
+
+        return subscription;
       },
     );
-
-    // Update QR code status
-    await this.prisma.qRCode.update({
-      where: { id: qrCodeId },
-      data: { isActive: true },
-    });
 
     return {
       message: 'Subscription activated successfully',

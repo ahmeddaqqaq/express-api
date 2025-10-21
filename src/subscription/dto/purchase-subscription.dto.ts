@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsUUID } from 'class-validator';
+import { IsString, IsUUID, IsOptional } from 'class-validator';
 
 export class PurchaseSubscriptionDto {
   @ApiProperty({ description: 'Customer ID' })
@@ -16,6 +16,12 @@ export class PurchaseSubscriptionDto {
   @IsString()
   @IsUUID()
   subscriptionId: string;
+
+  @ApiProperty({ description: 'User ID who purchased (optional)', required: false })
+  @IsString()
+  @IsUUID()
+  @IsOptional()
+  purchasedById?: string;
 }
 
 export class ActivateSubscriptionDto {
@@ -28,4 +34,10 @@ export class ActivateSubscriptionDto {
   @IsString()
   @IsUUID()
   qrCodeId: string;
+
+  @ApiProperty({ description: 'User ID who activated (optional)', required: false })
+  @IsString()
+  @IsUUID()
+  @IsOptional()
+  activatedById?: string;
 }
