@@ -29,6 +29,7 @@ import {
   CustomerSubscriptionResponseDto,
   AllCustomerSubscriptionsResponseDto,
 } from './dto/subscription-response.dto';
+import { SubscriptionLogListResponseDto } from './dto/subscription-log-response.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -127,6 +128,33 @@ export class SubscriptionController {
   })
   async getPendingActivations() {
     return this.subscriptionService.getPendingActivations();
+  }
+
+  @Get('logs')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Get all subscription logs with pagination' })
+  @ApiQuery({
+    name: 'skip',
+    type: 'number',
+    required: false,
+    description: 'Number of records to skip (default: 0)',
+  })
+  @ApiQuery({
+    name: 'take',
+    type: 'number',
+    required: false,
+    description: 'Number of records to take (default: 10)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of subscription logs with pagination',
+    type: SubscriptionLogListResponseDto,
+  })
+  async getSubscriptionLogs(
+    @Query('skip', new ParseIntPipe({ optional: true })) skip?: number,
+    @Query('take', new ParseIntPipe({ optional: true })) take?: number,
+  ) {
+    return this.subscriptionService.getSubscriptionLogs(skip ?? 0, take ?? 10);
   }
 
   @Get('customer/:customerId')

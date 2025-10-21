@@ -1358,6 +1358,89 @@ export class SubscriptionService {
     };
   }
 
+  async getSubscriptionLogs(skip: number = 0, take: number = 10) {
+    const [logs, total] = await Promise.all([
+      this.prisma.subscriptionLog.findMany({
+        skip,
+        take,
+        include: {
+          purchasedBy: {
+            select: {
+              id: true,
+              name: true,
+              mobileNumber: true,
+            },
+          },
+          activatedBy: {
+            select: {
+              id: true,
+              name: true,
+              mobileNumber: true,
+            },
+          },
+          customerSubscription: {
+            include: {
+              customer: true,
+              subscription: true,
+              car: {
+                include: {
+                  brand: true,
+                  model: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.subscriptionLog.count(),
+    ]);
+
+    return {
+      data: logs.map((log) => ({
+        id: log.id,
+        customerSubscriptionId: log.customerSubscriptionId,
+        action: log.action,
+        purchasedBy: log.purchasedBy
+          ? {
+              id: log.purchasedBy.id,
+              name: log.purchasedBy.name,
+              mobileNumber: log.purchasedBy.mobileNumber,
+            }
+          : null,
+        purchasedAt: log.purchasedAt,
+        activatedBy: log.activatedBy
+          ? {
+              id: log.activatedBy.id,
+              name: log.activatedBy.name,
+              mobileNumber: log.activatedBy.mobileNumber,
+            }
+          : null,
+        activatedAt: log.activatedAt,
+        createdAt: log.createdAt,
+        updatedAt: log.updatedAt,
+        customerSubscription: {
+          id: log.customerSubscription.id,
+          customer: {
+            name: `${log.customerSubscription.customer.fName} ${log.customerSubscription.customer.lName}`,
+            mobileNumber: log.customerSubscription.customer.mobileNumber,
+          },
+          subscription: {
+            name: log.customerSubscription.subscription.name,
+          },
+          car: {
+            plateNumber: log.customerSubscription.car.plateNumber,
+            brand: log.customerSubscription.car.brand.name,
+            model: log.customerSubscription.car.model.name,
+          },
+        },
+      })),
+      total,
+    };
+  }
+
   private formatSubscriptionResponse(subscription: any) {
     return {
       id: subscription.id,
