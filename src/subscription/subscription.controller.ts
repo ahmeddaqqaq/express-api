@@ -151,10 +151,12 @@ export class SubscriptionController {
     type: SubscriptionLogListResponseDto,
   })
   async getSubscriptionLogs(
-    @Query('skip', new ParseIntPipe({ optional: true })) skip?: number,
-    @Query('take', new ParseIntPipe({ optional: true })) take?: number,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
   ) {
-    return this.subscriptionService.getSubscriptionLogs(skip ?? 0, take ?? 10);
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const takeNum = take ? parseInt(take, 10) : 10;
+    return this.subscriptionService.getSubscriptionLogs(skipNum, takeNum);
   }
 
   @Get('customer/:customerId')
