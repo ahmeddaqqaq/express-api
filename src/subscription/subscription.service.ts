@@ -1496,4 +1496,34 @@ export class SubscriptionService {
       message: 'Customer subscription deleted successfully',
     };
   }
+
+  async bulkUpdateSubscriptionExpiry(subscriptionName: string, days: number) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { name: subscriptionName },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException(
+        `Subscription '${subscriptionName}' not found`,
+      );
+    }
+
+    const result = await this.prisma.$executeRaw`
+    UPDATE "CustomerSubscription" cs
+    SET "expiryDate" = cs."activationDate" + INTERVAL '${days} days',
+        "updatedAt" = NOW()
+    FROM "Subscription" s
+    WHERE cs."subscriptionId" = s.id
+      AND s.name = ${subscriptionName}
+      AND cs."activationDate" IS NOT NULL
+      AND cs."isActive" = true
+  `;
+
+    return {
+      success: true,
+      subscriptionName,
+      days,
+      updatedCount: result,
+    };
+  }
 }

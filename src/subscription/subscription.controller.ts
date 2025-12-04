@@ -33,6 +33,7 @@ import { SubscriptionLogListResponseDto } from './dto/subscription-log-response.
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { BulkUpdateSubscriptionDto } from './dto/bulk-sub.dto';
 
 @ApiTags('Subscription')
 @Controller('subscription')
@@ -317,5 +318,27 @@ export class SubscriptionController {
   @ApiResponse({ status: 200, type: [SubscriptionResponseDto] })
   async findAll() {
     return this.subscriptionService.findAll();
+  }
+
+  @Post('bulk-update-expiry')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Bulk update subscription expiry dates' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscriptions updated successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Subscription template not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid update data',
+  })
+  async bulkUpdateExpiry(@Body() dto: BulkUpdateSubscriptionDto) {
+    return await this.subscriptionService.bulkUpdateSubscriptionExpiry(
+      dto.subscriptionName,
+      dto.days,
+    );
   }
 }
