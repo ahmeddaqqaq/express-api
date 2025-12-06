@@ -299,6 +299,7 @@ model Subscription {
   description       String?
   endDate           DateTime? // Optional validation: subscription end date
   maxUsesPerService Int? // Optional validation: max uses per service
+  durationInDays    Int       @default(30) // Duration in days for customer subscriptions
   isActive          Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

@@ -60,6 +60,12 @@ export class CreateSubscriptionDto {
   @Min(1)
   maxUsesPerService?: number;
 
+  @ApiProperty({ description: 'Duration in days for customer subscriptions', required: false, default: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationInDays?: number;
+
   @ApiProperty({ type: [SubscriptionServiceDto], description: 'Services included in subscription' })
   @IsArray()
   @ValidateNested({ each: true })

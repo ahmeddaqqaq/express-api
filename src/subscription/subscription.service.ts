@@ -44,7 +44,7 @@ export class SubscriptionService {
   }
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
-    const { name, description, endDate, maxUsesPerService, services, prices } =
+    const { name, description, endDate, maxUsesPerService, durationInDays, services, prices } =
       createSubscriptionDto;
 
     // Validate that all services exist
@@ -76,6 +76,7 @@ export class SubscriptionService {
         description,
         endDate: endDate ? new Date(endDate) : null,
         maxUsesPerService,
+        durationInDays: durationInDays ?? 30, // Default to 30 days if not provided
         subscriptionServices: {
           create: services.map((s) => ({
             serviceId: s.serviceId,
@@ -149,7 +150,7 @@ export class SubscriptionService {
       throw new NotFoundException('Subscription not found');
     }
 
-    const { name, description, endDate, maxUsesPerService, services, prices } =
+    const { name, description, endDate, maxUsesPerService, durationInDays, services, prices } =
       updateSubscriptionDto;
 
     // Validate services exist
@@ -182,6 +183,7 @@ export class SubscriptionService {
         description,
         endDate: endDate ? new Date(endDate) : null,
         maxUsesPerService,
+        durationInDays: durationInDays ?? existingSubscription.durationInDays ?? 30,
         subscriptionServices: {
           deleteMany: {},
           create: services.map((s) => ({
@@ -287,9 +289,9 @@ export class SubscriptionService {
       throw new BadRequestException('Subscription has expired');
     }
 
-    // Calculate expiry date as 30 days from purchase
+    // Calculate expiry date based on subscription's durationInDays
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    expiryDate.setDate(expiryDate.getDate() + (subscription.durationInDays || 30));
 
     // Validate user exists if provided
     if (purchasedById) {
@@ -1274,7 +1276,7 @@ export class SubscriptionService {
     }
 
     const newExpiryDate = new Date();
-    newExpiryDate.setDate(newExpiryDate.getDate() + 30);
+    newExpiryDate.setDate(newExpiryDate.getDate() + (sub.subscription.durationInDays || 30));
 
     const result = await this.prisma.$transaction(async (prisma) => {
       await prisma.subscriptionUsageRecord.deleteMany({
@@ -1448,6 +1450,7 @@ export class SubscriptionService {
       description: subscription.description,
       endDate: subscription.endDate,
       maxUsesPerService: subscription.maxUsesPerService,
+      durationInDays: subscription.durationInDays,
       isActive: subscription.isActive,
       services: subscription.subscriptionServices.map((ss: any) => ({
         id: ss.id,
@@ -1508,9 +1511,12 @@ export class SubscriptionService {
       );
     }
 
+    // Use the provided days parameter or fall back to subscription's durationInDays
+    const durationToUse = days || subscription.durationInDays || 30;
+
     const result = await this.prisma.$executeRaw`
     UPDATE "CustomerSubscription" cs
-    SET "expiryDate" = cs."activationDate" + INTERVAL '${days} days',
+    SET "expiryDate" = cs."activationDate" + INTERVAL '${durationToUse} days',
         "updatedAt" = NOW()
     FROM "Subscription" s
     WHERE cs."subscriptionId" = s.id
@@ -1522,7 +1528,7 @@ export class SubscriptionService {
     return {
       success: true,
       subscriptionName,
-      days,
+      days: durationToUse,
       updatedCount: result,
     };
   }
