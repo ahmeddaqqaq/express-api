@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import {
   CreateSubscriptionDto,
   UpdateSubscriptionDto,
@@ -44,8 +45,15 @@ export class SubscriptionService {
   }
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
-    const { name, description, endDate, maxUsesPerService, durationInDays, services, prices } =
-      createSubscriptionDto;
+    const {
+      name,
+      description,
+      endDate,
+      maxUsesPerService,
+      durationInDays,
+      services,
+      prices,
+    } = createSubscriptionDto;
 
     // Validate that all services exist
     const serviceIds = services.map((s) => s.serviceId);
@@ -150,8 +158,15 @@ export class SubscriptionService {
       throw new NotFoundException('Subscription not found');
     }
 
-    const { name, description, endDate, maxUsesPerService, durationInDays, services, prices } =
-      updateSubscriptionDto;
+    const {
+      name,
+      description,
+      endDate,
+      maxUsesPerService,
+      durationInDays,
+      services,
+      prices,
+    } = updateSubscriptionDto;
 
     // Validate services exist
     const serviceIds = services.map((s) => s.serviceId);
@@ -183,7 +198,8 @@ export class SubscriptionService {
         description,
         endDate: endDate ? new Date(endDate) : null,
         maxUsesPerService,
-        durationInDays: durationInDays ?? existingSubscription.durationInDays ?? 30,
+        durationInDays:
+          durationInDays ?? existingSubscription.durationInDays ?? 30,
         subscriptionServices: {
           deleteMany: {},
           create: services.map((s) => ({
@@ -492,7 +508,10 @@ export class SubscriptionService {
     // Calculate expiry date from activation date
     const activationDate = new Date();
     const expiryDate = new Date(activationDate);
-    expiryDate.setDate(expiryDate.getDate() + (customerSubscription.subscription.durationInDays || 30));
+    expiryDate.setDate(
+      expiryDate.getDate() +
+        (customerSubscription.subscription.durationInDays || 30),
+    );
 
     // Activate the subscription and create log in a transaction
     const activatedSubscription = await this.prisma.$transaction(
@@ -624,7 +643,10 @@ export class SubscriptionService {
     // Calculate expiry date from activation date
     const activationDate = new Date();
     const expiryDate = new Date(activationDate);
-    expiryDate.setDate(expiryDate.getDate() + (customerSubscription.subscription.durationInDays || 30));
+    expiryDate.setDate(
+      expiryDate.getDate() +
+        (customerSubscription.subscription.durationInDays || 30),
+    );
 
     // Assign the QR code to the subscription
     const updatedSubscription = await this.prisma.customerSubscription.update({
@@ -1311,7 +1333,9 @@ export class SubscriptionService {
     }
 
     const newExpiryDate = new Date();
-    newExpiryDate.setDate(newExpiryDate.getDate() + (sub.subscription.durationInDays || 30));
+    newExpiryDate.setDate(
+      newExpiryDate.getDate() + (sub.subscription.durationInDays || 30),
+    );
 
     const result = await this.prisma.$transaction(async (prisma) => {
       await prisma.subscriptionUsageRecord.deleteMany({
@@ -1549,16 +1573,18 @@ export class SubscriptionService {
     // Use the provided days parameter or fall back to subscription's durationInDays
     const durationToUse = days || subscription.durationInDays || 30;
 
-    const result = await this.prisma.$executeRaw`
-    UPDATE "CustomerSubscription" cs
-    SET "expiryDate" = cs."activationDate" + INTERVAL '${durationToUse} days',
-        "updatedAt" = NOW()
-    FROM "Subscription" s
-    WHERE cs."subscriptionId" = s.id
-      AND s.name = ${subscriptionName}
-      AND cs."activationDate" IS NOT NULL
-      AND cs."isActive" = true
-  `;
+    const result = await this.prisma.$executeRaw(
+      Prisma.sql`
+        UPDATE "CustomerSubscription" cs
+        SET "expiryDate" = cs."activationDate" + (${durationToUse} * INTERVAL '1 day'),
+            "updatedAt" = NOW()
+        FROM "Subscription" s
+        WHERE cs."subscriptionId" = s.id
+          AND s.name = ${subscriptionName}
+          AND cs."activationDate" IS NOT NULL
+          AND cs."isActive" = true
+      `,
+    );
 
     return {
       success: true,
