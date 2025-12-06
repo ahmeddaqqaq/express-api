@@ -34,6 +34,7 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { BulkUpdateSubscriptionDto } from './dto/bulk-sub.dto';
+import { UpdateDurationDto } from './dto/update-duration.dto';
 
 @ApiTags('Subscription')
 @Controller('subscription')
@@ -274,6 +275,23 @@ export class SubscriptionController {
   }
 
   // Subscription Template CRUD - Put ALL dynamic routes last including GET /
+
+  @Patch(':id/duration')
+  @Roles('ADMIN', 'SUPERVISOR')
+  @ApiOperation({ summary: 'Update subscription duration' })
+  @ApiResponse({
+    status: 200,
+    type: SubscriptionResponseDto,
+    description: 'Subscription duration updated successfully'
+  })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  @ApiResponse({ status: 400, description: 'Invalid duration value' })
+  async updateDuration(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateDurationDto: UpdateDurationDto,
+  ) {
+    return this.subscriptionService.updateDuration(id, updateDurationDto.durationInDays);
+  }
 
   @Get(':id')
   @Roles('ADMIN', 'SUPERVISOR')

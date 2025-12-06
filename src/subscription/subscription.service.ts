@@ -213,6 +213,33 @@ export class SubscriptionService {
     return this.formatSubscriptionResponse(subscription);
   }
 
+  async updateDuration(id: string, durationInDays: number) {
+    const existingSubscription = await this.prisma.subscription.findUnique({
+      where: { id },
+    });
+
+    if (!existingSubscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    const subscription = await this.prisma.subscription.update({
+      where: { id },
+      data: {
+        durationInDays,
+      },
+      include: {
+        subscriptionServices: {
+          include: {
+            service: true,
+          },
+        },
+        subscriptionPrices: true,
+      },
+    });
+
+    return this.formatSubscriptionResponse(subscription);
+  }
+
   async delete(id: string) {
     const subscription = await this.prisma.subscription.findUnique({
       where: { id },
@@ -289,10 +316,6 @@ export class SubscriptionService {
       throw new BadRequestException('Subscription has expired');
     }
 
-    // Calculate expiry date based on subscription's durationInDays
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + (subscription.durationInDays || 30));
-
     // Validate user exists if provided
     if (purchasedById) {
       const user = await this.prisma.user.findUnique({
@@ -313,7 +336,7 @@ export class SubscriptionService {
           subscriptionId,
           qrCodeId: null, // Will be set during activation
           totalPrice: priceInfo.price,
-          expiryDate,
+          expiryDate: null, // Will be set during activation
         },
         include: {
           customer: true,
@@ -466,6 +489,11 @@ export class SubscriptionService {
       }
     }
 
+    // Calculate expiry date from activation date
+    const activationDate = new Date();
+    const expiryDate = new Date(activationDate);
+    expiryDate.setDate(expiryDate.getDate() + (customerSubscription.subscription.durationInDays || 30));
+
     // Activate the subscription and create log in a transaction
     const activatedSubscription = await this.prisma.$transaction(
       async (prisma) => {
@@ -474,7 +502,8 @@ export class SubscriptionService {
           where: { id: customerSubscriptionId },
           data: {
             qrCodeId,
-            activationDate: new Date(),
+            activationDate,
+            expiryDate,
           },
           include: {
             qrCode: true,
@@ -592,12 +621,18 @@ export class SubscriptionService {
       );
     }
 
+    // Calculate expiry date from activation date
+    const activationDate = new Date();
+    const expiryDate = new Date(activationDate);
+    expiryDate.setDate(expiryDate.getDate() + (customerSubscription.subscription.durationInDays || 30));
+
     // Assign the QR code to the subscription
     const updatedSubscription = await this.prisma.customerSubscription.update({
       where: { id: customerSubscriptionId },
       data: {
         qrCodeId,
-        activationDate: new Date(), // Auto-activate when QR is assigned
+        activationDate, // Auto-activate when QR is assigned
+        expiryDate,
       },
       include: {
         qrCode: true,
